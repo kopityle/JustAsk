@@ -1,0 +1,33 @@
+﻿# Python кэш и виртуальное окружение
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Тесты и покрытие
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Локальная векторная база и сгенерированные данные
+data/chroma/
+*.pid
+
+# Служебные папки агентов 
+.opencode/
+.impeccable/
+.refact/
+
+# Настройки IDE и редакторов
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Системные файлы ОС
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
