@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="ru" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>justask · AI Tutor</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: { 
+            brand: { 
+              600: '#310CB5', 
+              700: '#270894' 
+            } 
+          }
+        }
+      }
+    }
+  </script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.1/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+    body { font-family: "Golos Text", sans-serif; }
+    .onboarding-title { font-size: 20px; line-height: 1.3; }
+    .mono { font-family: "JetBrains Mono", monospace; }
+    pre code { border-radius: 6px; font-family: "JetBrains Mono", monospace; font-size: 12px; }
+    .custom-scroll::-webkit-scrollbar { width: 5px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .dark .custom-scroll::-webkit-scrollbar-thumb { background: #334155; }
+    details summary::-webkit-details-marker { display:none; }
+    details summary { list-style: none; }
+    button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid #310CB5; outline-offset: 2px; }
+    .dark button:focus-visible, .dark a:focus-visible, .dark textarea:focus-visible, .dark summary:focus-visible { outline-color: #a5b4fc; }
+  @media (min-width: 1024px) {
+      #sidebar.desktop-closed {
+        margin-left: -18rem;
+        transform: none;
+      }
+    }
+</style>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23310CB5%22><path d=%22M12 2C6.48 2 2 6.48 2 12c0 1.84.5 3.56 1.35 5.04L2 22l4.96-1.35C8.44 21.5 10.16 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.03-.42 1.98-1.07 2.75z%22/></svg>">
+</head>
+<body class="bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 flex h-screen overflow-hidden transition-colors duration-200">
+  
+  <aside id="sidebar" tabindex="-1" aria-label="Материалы курса" class="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 flex flex-col justify-between shrink-0 transition-transform duration-300 z-50 -translate-x-full lg:static lg:translate-x-0 lg:z-30">
+    <div class="p-4 flex flex-col h-full overflow-hidden">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800 mb-4">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-[#310CB5] text-white flex items-center justify-center shadow-sm">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.84.5 3.56 1.35 5.04L2 22l4.96-1.35C8.44 21.5 10.16 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.03-.42 1.98-1.07 2.75z"/></svg>
+          </div>
+          <span class="font-bold text-base tracking-tight text-slate-900 dark:text-white">just<span class="text-[#310CB5]">ask</span></span>
+        </div>
+        <div class="flex items-center gap-1">
+          <span id="roleBadge" class="mono text-[11px] text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded">Гость</span>
+          <button type="button" onclick="setSidebarOpen(false, true)" aria-label="Закрыть панель материалов" class="lg:hidden inline-flex items-center justify-center min-w-11 min-h-11 text-slate-600 hover:text-slate-900 dark:text-zinc-300 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+            <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto custom-scroll pr-1">
+        <div class="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-zinc-300 uppercase tracking-wider mb-2">
+          <span>Материалы</span>
+          <span id="chunksCount" class="mono text-slate-600 dark:text-zinc-300">0 чанков</span>
+        </div>
+        <div id="docsList" class="space-y-1.5"></div>
+      </div>
+
+      <!-- Блок загрузки материалов с индикатором прогресса -->
+      <div id="teacherUploadBlock" class="hidden pt-3 border-t border-slate-100 dark:border-zinc-800 mt-auto">
+        <input type="file" id="fileInput" accept=".pdf,.txt" class="hidden">
+        <button type="button" id="uploadBtn" onclick="document.getElementById('fileInput').click()" 
+                class="w-full py-2.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 rounded text-xs font-medium transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg id="uploadIcon" aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <span id="uploadText">Добавить материал</span>
+        </button>
+        <div id="uploadStatusMsg" role="status" aria-live="polite" class="hidden text-[11px] mt-1 text-center font-medium"></div>
+      </div>
+      <div id="devWriteBanner" role="status" class="hidden mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-[11px] leading-snug text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+        DEV: запись в материалы разрешена без роли преподавателя.
+      </div>
+    </div>
+  </aside>
+
+  <div id="sidebarBackdrop" class="fixed inset-0 bg-slate-900/40 z-40 hidden lg:hidden" aria-hidden="true"></div>
+
+  <main role="main" class="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-zinc-950">
+    <h1 class="sr-only">justask — ИИ-наставник по материалам курса</h1>
+    <header class="min-h-14 border-b border-slate-200 dark:border-zinc-800 px-4 py-1.5 flex items-center justify-between bg-white dark:bg-zinc-900/60 shrink-0">
+      <div class="flex items-center gap-2 min-w-0">
+        <button type="button" onclick="toggleSidebar()" aria-controls="sidebar" aria-expanded="true" aria-label="Открыть или закрыть панель материалов" class="inline-flex items-center justify-center min-w-11 min-h-11 text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-zinc-800 transition shrink-0" title="Панель материалов">
+          <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <span id="courseBadge" class="text-xs font-medium text-slate-600 dark:text-zinc-300 truncate min-w-0 max-w-xs md:max-w-md">Курс: Базовый</span>
+      </div>
+      
+      <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+        <button type="button" onclick="showOnboarding()" aria-label="Показать подсказку" class="inline-flex items-center justify-center min-w-11 min-h-11 text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-zinc-800 transition" title="Подсказка">
+          <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </button>
+        <button type="button" onclick="toggleTheme()" aria-label="Переключить светлую или тёмную тему" class="inline-flex items-center justify-center min-w-11 min-h-11 text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-zinc-800 transition" title="Переключить тему">
+          <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        </button>
+        <button type="button" onclick="clearConversation()" aria-label="Очистить диалог" class="inline-flex items-center justify-center min-h-11 px-3 text-xs text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+          Очистить
+        </button>
+      </div>
+    </header>
+
+    <div id="messagesContainer" tabindex="-1" aria-label="Диалог с ИИ-наставником" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scroll">
+      <div id="messages" class="max-w-2xl mx-auto space-y-4">
+        <div id="welcomePanel" class="flex gap-3">
+          <div class="w-6 h-6 rounded bg-[#310CB5] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5" aria-hidden="true">?</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-3.5 rounded-lg text-slate-700 dark:text-zinc-300 leading-relaxed shadow-sm">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <h2 class="onboarding-title font-semibold text-slate-900 dark:text-white">Спросите по материалам курса</h2>
+                  <p class="mt-1 text-slate-600 dark:text-zinc-300">Я justask. Отвечаю только по загруженным материалам курса и показываю документ, страницу и цитату.</p>
+                </div>
+                <button type="button" data-dismiss-onboarding aria-label="Скрыть подсказку" class="-m-2 inline-flex items-center justify-center min-w-11 min-h-11 text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-zinc-800 transition shrink-0">
+                  <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <div id="onboardingExamples" class="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800">
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-zinc-300">Например</p>
+                <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                  <button type="button" data-sample-question="Объясни ключевые понятия из первой темы" class="rounded-lg border border-slate-300 dark:border-zinc-700 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-zinc-200 hover:border-[#310CB5] hover:bg-slate-50 hover:text-[#310CB5] dark:hover:border-indigo-400 dark:hover:bg-zinc-800/60 dark:hover:text-indigo-400 transition text-left leading-snug">Объясни ключевые понятия из первой темы</button>
+                  <button type="button" data-sample-question="Разбери основное задание из материалов" class="rounded-lg border border-slate-300 dark:border-zinc-700 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-zinc-200 hover:border-[#310CB5] hover:bg-slate-50 hover:text-[#310CB5] dark:hover:border-indigo-400 dark:hover:bg-zinc-800/60 dark:hover:text-indigo-400 transition text-left leading-snug">Разбери основное задание из материалов</button>
+                  <button type="button" data-sample-question="Покажи пример из материалов курса" class="rounded-lg border border-slate-300 dark:border-zinc-700 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-zinc-200 hover:border-[#310CB5] hover:bg-slate-50 hover:text-[#310CB5] dark:hover:border-indigo-400 dark:hover:bg-zinc-800/60 dark:hover:text-indigo-400 transition text-left leading-snug">Покажи пример из материалов курса</button>
+                  <button type="button" data-sample-question="Какие требования или шаги описаны?" class="rounded-lg border border-slate-300 dark:border-zinc-700 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-zinc-200 hover:border-[#310CB5] hover:bg-slate-50 hover:text-[#310CB5] dark:hover:border-indigo-400 dark:hover:bg-zinc-800/60 dark:hover:text-indigo-400 transition text-left leading-snug">Какие требования или шаги описаны?</button>
+                </div>
+              </div>
+              <div id="onboardingNoMaterials" class="hidden mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800">
+                <p class="text-sm font-medium text-slate-700 dark:text-zinc-200">Материалы ещё не загружены</p>
+                <p id="onboardingNoMaterialsText" class="mt-1 text-xs text-slate-600 dark:text-zinc-300 leading-relaxed"></p>
+                <button type="button" id="onboardingUploadBtn" onclick="document.getElementById('fileInput').click()" class="hidden mt-2.5 inline-flex items-center justify-center min-h-11 px-3 rounded border border-slate-300 dark:border-zinc-700 text-xs font-medium text-slate-700 dark:text-zinc-200 hover:border-[#310CB5] hover:text-[#310CB5] dark:hover:border-indigo-400 dark:hover:text-indigo-400 transition">Добавить PDF или TXT</button>
+              </div>
+              <p class="mt-3 text-xs text-slate-600 dark:text-zinc-300">Если ответа в материалах нет, justask скажет об этом прямо.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-4 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shrink-0">
+      <div class="max-w-2xl mx-auto">
+        <form id="chatForm" class="relative bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 focus-within:border-[#310CB5] rounded-lg p-2 transition">
+          <label for="userInput" class="sr-only">Ваш вопрос по материалам курса</label>
+          <textarea id="userInput" rows="1" maxlength="4000" aria-describedby="composerHint" placeholder="Задайте вопрос по материалам курса (Enter для отправки)..." 
+                    class="w-full bg-transparent px-2 min-h-11 py-2.5 text-sm text-slate-900 dark:text-zinc-100 placeholder-slate-600 dark:placeholder-zinc-400 resize-none max-h-32 custom-scroll"></textarea>
+          <div class="flex items-center justify-between pt-2 px-1 border-t border-slate-200 dark:border-zinc-800/60 mt-1">
+            <span id="composerHint" class="text-xs text-slate-600 dark:text-zinc-300">Shift + Enter перенос строки</span>
+            <div class="flex items-center gap-2">
+              <button type="button" id="stopBtn" class="hidden inline-flex items-center justify-center min-h-11 px-3.5 border border-slate-300 text-slate-600 dark:border-zinc-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs font-medium transition">
+                Остановить
+              </button>
+              <button type="submit" id="sendBtn" 
+                      class="inline-flex items-center justify-center min-h-11 px-3.5 bg-[#310CB5] hover:bg-[#270894] text-white rounded text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed gap-1.5">
+                <span id="sendBtnText">Спросить</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <div id="srStatus" class="sr-only" role="status" aria-live="polite"></div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    let token = urlParams.get('token') || sessionStorage.getItem('justask_jwt');
+    if (urlParams.get('token')) sessionStorage.setItem('justask_jwt', token);
+
+    const getAuthHeaders = () => token ? { "Authorization": "Bearer " + token } : {};
+    const $ = (id) => document.getElementById(id);
+    const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[ch]));
+    const setSrStatus = (message) => { const el = $("srStatus"); if (el) el.textContent = message; };
+    const readError = async (response) => {
+      try {
+        const data = await response.json();
+        return data.detail || data.message || `Ошибка ${response.status}`;
+      } catch {
+        return `Ошибка ${response.status}`;
+      }
+    };
+
+    let isStudent = false;
+    let canManageDocuments = false;
+    let hasCourseDocuments = null;
+    let activeController = null;
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        isStudent = payload.role === 'student';
+        $('roleBadge').innerText = payload.role === 'student'
+          ? `Студент (${payload.name || 'без имени'})`
+          : payload.role === 'teacher'
+            ? `Преподаватель (${payload.name || 'без имени'})`
+            : 'Гость';
+        $('courseBadge').innerText = `Курс: ${payload.course_id || 'Основной'}`;
+      } catch (e) {
+        sessionStorage.removeItem('justask_jwt');
+        token = null;
+        $('roleBadge').innerText = 'Гость';
+      }
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      } else {
+        html.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      }
+    }
+    if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+
+    const sidebar = $('sidebar');
+    const sidebarBackdrop = $('sidebarBackdrop');
+    const sidebarToggle = document.querySelector('[aria-controls="sidebar"]');
+    let sidebarOpen = false;
+
+    function sidebarFocusable() {
+      return [...sidebar.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+        .filter((el) => el.offsetParent !== null);
+    }
+
+    function setSidebarOpen(open, restoreFocus = false) {
+      sidebarOpen = open;
+      sidebar.classList.toggle('-translate-x-full', !open);
+      const isMobile = window.innerWidth < 1024;
+      if (!isMobile) {
+        if (!open) {
+          sidebar.classList.add('desktop-closed');
+        } else {
+          sidebar.classList.remove('desktop-closed');
+        }
+      }
+      sidebar.inert = isMobile && !open;
+      sidebar.setAttribute('aria-hidden', String(isMobile && !open));
+      sidebarBackdrop.classList.toggle('hidden', !open || !isMobile);
+      sidebarToggle.setAttribute('aria-expanded', String(open));
+      sidebarToggle.setAttribute('aria-label', open ? 'Закрыть панель материалов' : 'Открыть панель материалов');
+      const main = document.querySelector('main');
+      main.inert = isMobile && open;
+      if (isMobile && open) {
+        const target = sidebarFocusable()[0] || sidebar;
+        target.focus({ preventScroll: true });
+      } else if (isMobile && restoreFocus) {
+        sidebarToggle.focus({ preventScroll: true });
+      }
+    }
+
+    function toggleSidebar() {
+      setSidebarOpen(!sidebarOpen);
+    }
+
+    sidebarBackdrop.addEventListener('click', () => setSidebarOpen(false, true));
+    document.addEventListener('keydown', (event) => {
+      if (!sidebarOpen || window.innerWidth >= 1024) return;
+      if (event.key === 'Escape') {
+        setSidebarOpen(false, true);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = sidebarFocusable();
+      if (!focusable.length) {
+        event.preventDefault();
+        sidebar.focus({ preventScroll: true });
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+    window.addEventListener('resize', () => setSidebarOpen(window.innerWidth >= 1024));
+    setSidebarOpen(window.innerWidth >= 1024);
+
+    marked.setOptions({
+      highlight: function(code, lang) {
+        if (lang && hljs.getLanguage(lang)) {
+          return hljs.highlight(code, { language: lang }).value;
+        }
+        return hljs.highlightAuto(code).value;
+      }
+    });
+
+    function renderSafeMarkdown(text) {
+      return DOMPurify.sanitize(marked.parse(text));
+    }
+
+    let docsStatusTimer = null;
+    function setDocsStatus(message, type = 'info', autoHide = false) {
+      const statusMsg = $("uploadStatusMsg");
+      if (docsStatusTimer) clearTimeout(docsStatusTimer);
+      statusMsg.className = "text-[11px] mt-1 text-center font-medium " + (
+        type === 'error' ? 'text-red-500'
+          : type === 'success' ? 'text-emerald-600 dark:text-emerald-400'
+            : 'text-indigo-600 dark:text-indigo-400'
+      );
+      statusMsg.innerText = message;
+      statusMsg.classList.remove("hidden");
+      if (autoHide) {
+        docsStatusTimer = setTimeout(() => {
+          statusMsg.classList.add("hidden");
+          docsStatusTimer = null;
+        }, 6000);
+      }
+    }
+
+    function renderDocsList(documents) {
+      const list = $("docsList");
+      if (!documents || documents.length === 0) {
+        const message = canManageDocuments
+          ? "Добавьте PDF или TXT — ответы студентов будут с цитатами."
+          : "Когда преподаватель добавит PDF или TXT, ответы будут с цитатами.";
+        list.innerHTML = `
+          <div class="rounded border border-dashed border-slate-300 dark:border-zinc-700 p-3 text-xs">
+            <div class="font-semibold text-slate-700 dark:text-zinc-200">Материалы ещё не загружены</div>
+            <p class="mt-1 text-slate-600 dark:text-zinc-300 leading-relaxed">${message}</p>
+            ${canManageDocuments ? '<button type="button" data-empty-upload class="mt-2 inline-flex items-center gap-1.5 font-medium text-[#310CB5] dark:text-indigo-400 hover:underline">Добавить PDF или TXT</button>' : ''}
+          </div>`;
+        return;
+      }
+      list.innerHTML = documents.map((d) => {
+        const filename = escapeHtml(d.filename);
+        return `
+          <div class="group flex items-center justify-between p-2 rounded bg-slate-100 dark:bg-zinc-800/60 text-xs">
+            <div class="min-w-0 pr-1">
+              <div class="font-medium text-slate-700 dark:text-zinc-300 truncate" title="${filename}">${filename}</div>
+              <div class="text-xs text-slate-600 dark:text-zinc-300">${escapeHtml(d.pages)} стр. · ${escapeHtml(d.chunks)} фрагм.</div>
+            </div>
+            ${canManageDocuments ? `
+            <button type="button" data-delete-doc="${filename}" aria-label="Удалить ${filename}" class="inline-flex items-center justify-center min-w-11 min-h-11 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100 text-slate-500 hover:text-red-600 transition" title="Удалить">
+              <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>` : ''}
+          </div>`;
+      }).join("");
+    }
+
+    function applyOnboardingAvailability(hasDocuments, canManage) {
+      const examples = $("onboardingExamples");
+      const note = $("onboardingNoMaterials");
+      const noteText = $("onboardingNoMaterialsText");
+      const uploadBtn = $("onboardingUploadBtn");
+      if (!examples || !note || !noteText || !uploadBtn) return;
+      const available = hasDocuments === true;
+      examples.classList.toggle("hidden", !available);
+      note.classList.toggle("hidden", available);
+      if (!available) {
+        noteText.textContent = canManage
+          ? "Добавьте PDF или TXT в панели материалов — после этого здесь появятся примеры вопросов."
+          : "Когда преподаватель добавит PDF или TXT, здесь появятся примеры вопросов.";
+        uploadBtn.classList.toggle("hidden", !canManage);
+      }
+    }
+
+    async function loadDocuments() {
+      const list = $("docsList");
+      try {
+        const res = await fetch("/api/documents", { headers: getAuthHeaders() });
+        if (!res.ok) throw new Error(await readError(res));
+        const data = await res.json();
+        canManageDocuments = Boolean(data.can_manage);
+        hasCourseDocuments = Array.isArray(data.documents) && data.documents.length > 0;
+        $("teacherUploadBlock").classList.toggle("hidden", !canManageDocuments);
+        $("devWriteBanner").classList.toggle("hidden", !data.dev_write_access);
+        $("chunksCount").innerText = `${data.total_chunks} чанков`;
+        renderDocsList(data.documents);
+        applyOnboardingAvailability(hasCourseDocuments, canManageDocuments);
+      } catch (err) {
+        list.innerHTML = `<div class="text-xs text-red-500 py-2">Не удалось загрузить материалы. <button type="button" data-retry-docs class="underline">Повторить</button></div>`;
+        setSrStatus("Не удалось загрузить материалы. Попробуйте ещё раз.");
+      }
+    }
+
+    async function deleteDoc(filename) {
+      if (!canManageDocuments) return;
+      if (!confirm(`Удалить «${filename}»? Материал исчезнет из поиска по курсу.`)) return;
+      try {
+        const res = await fetch(`/api/documents/${encodeURIComponent(filename)}`, { method: "DELETE", headers: getAuthHeaders() });
+        if (!res.ok) throw new Error(await readError(res));
+        const data = await res.json();
+        setDocsStatus(`Удалено: ${data.filename}. Фрагментов: ${data.removed_chunks}.`, 'success', true);
+        setSrStatus(`Материал ${filename} удалён.`);
+      } catch (err) {
+        setDocsStatus(`Не удалось удалить: ${err.message}`, 'error');
+        setSrStatus(`Не удалось удалить материал: ${err.message}`);
+      } finally {
+        loadDocuments();
+      }
+    }
+
+    $("docsList").addEventListener("click", (event) => {
+      const retry = event.target.closest("[data-retry-docs]");
+      if (retry) { loadDocuments(); return; }
+      const emptyUpload = event.target.closest("[data-empty-upload]");
+      if (emptyUpload) { $("fileInput").click(); return; }
+      const deleteBtn = event.target.closest("[data-delete-doc]");
+      if (deleteBtn) deleteDoc(deleteBtn.getAttribute("data-delete-doc"));
+    });
+
+    loadDocuments();
+
+    const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+    $("fileInput").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const uploadBtn = $("uploadBtn");
+      const uploadText = $("uploadText");
+
+      if (!/\.(pdf|txt)$/i.test(file.name)) {
+        setDocsStatus("Поддерживаются только PDF и TXT.", "error");
+        e.target.value = "";
+        return;
+      }
+      if (file.size > MAX_UPLOAD_BYTES) {
+        setDocsStatus("Файл больше 50 МБ. Разделите материал на части.", "error");
+        e.target.value = "";
+        return;
+      }
+
+      uploadBtn.disabled = true;
+      uploadText.innerHTML = '<span class="inline-block animate-spin mr-1" aria-hidden="true">🌀</span> Индексация (до 1 мин)...';
+      setDocsStatus("Идёт нарезка на чанки и вычисление векторов...", "info");
+      setSrStatus("Идёт индексация файла. Это может занять до минуты.");
+
+      const form = new FormData();
+      form.append("file", file);
+
+      try {
+        const res = await fetch("/api/documents/upload", {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: form
+        });
+        if (!res.ok) throw new Error(await readError(res));
+        const resData = await res.json();
+        setDocsStatus(`Успешно! Добавлено ${resData.indexed_chunks} чанков.`, "success", true);
+        setSrStatus(`Файл ${file.name} добавлен. Проиндексировано фрагментов: ${resData.indexed_chunks}.`);
+      } catch (err) {
+        setDocsStatus(`Ошибка: ${err.message}`, "error");
+        setSrStatus(`Ошибка загрузки: ${err.message}`);
+      } finally {
+        uploadBtn.disabled = false;
+        uploadText.innerText = "Добавить материал";
+        e.target.value = "";
+        loadDocuments();
+      }
+    });
+
+    const textarea = document.getElementById("userInput");
+    textarea.addEventListener("input", function() {
+      this.style.height = "auto";
+      this.style.height = this.scrollHeight + "px";
+    });
+    textarea.addEventListener("keydown", function(e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById("chatForm").requestSubmit();
+      }
+    });
+
+    async function copyAnswer(btn) {
+      const card = btn.closest('.ai-card');
+      const text = card.querySelector('.msg-body').innerText;
+      try {
+        await navigator.clipboard.writeText(text);
+        const old = btn.innerText;
+        btn.innerText = "Скопировано!";
+        setTimeout(() => { btn.innerText = old; }, 1500);
+      } catch {
+        setSrStatus("Не удалось скопировать ответ.");
+      }
+    }
+
+    async function rateAnswer(btn, isPositive) {
+      const card = btn.closest('.ai-card');
+      const q = card.getAttribute('data-q');
+      const a = card.querySelector('.msg-body').innerText;
+      try {
+        const res = await fetch("/api/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+          body: JSON.stringify({ question: q, answer: a, is_positive: isPositive })
+        });
+        if (!res.ok) throw new Error(await readError(res));
+        const feedback = btn.parentElement;
+        feedback.innerHTML = '<span class="text-[#310CB5] dark:text-indigo-400 font-medium text-[11px]">Спасибо за отзыв!</span>';
+        feedback.tabIndex = -1;
+        feedback.focus({ preventScroll: true });
+        setSrStatus("Спасибо за отзыв.");
+      } catch (err) {
+        const feedback = btn.parentElement;
+        feedback.innerHTML = `<span class="text-red-600 dark:text-red-400 font-medium text-[11px]">${escapeHtml(err.message)}</span>`;
+        feedback.tabIndex = -1;
+        feedback.focus({ preventScroll: true });
+        setSrStatus(`Не удалось отправить отзыв: ${err.message}`);
+      }
+    }
+
+    const chatForm = $("chatForm");
+    const messages = $("messages");
+    const container = $("messagesContainer");
+    const sendBtn = $("sendBtn");
+    const sendBtnText = $("sendBtnText");
+    const stopBtn = $("stopBtn");
+    const ONBOARDING_KEY = "justask_onboarding_dismissed";
+    const simpleGreetingHtml = `
+      <div class="flex gap-3">
+        <div class="w-6 h-6 rounded bg-[#310CB5] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5" aria-hidden="true">?</div>
+        <div class="text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-3.5 rounded-lg text-slate-700 dark:text-zinc-300 leading-relaxed shadow-sm">
+          Привет! Я ассистент курса <b>justask</b>. Задайте вопрос по материалам — ответ придёт с цитатой из источника.
+        </div>
+      </div>`;
+    const onboardingHtml = messages.innerHTML;
+    const isOnboardingDismissed = () => {
+      try { return localStorage.getItem(ONBOARDING_KEY) === "1"; } catch (e) { return false; }
+    };
+    const welcomeHtml = () => isOnboardingDismissed() ? simpleGreetingHtml : onboardingHtml;
+    const markOnboardingSeen = () => {
+      try { localStorage.setItem(ONBOARDING_KEY, "1"); } catch (e) {}
+    };
+    if (isOnboardingDismissed()) messages.innerHTML = simpleGreetingHtml;
+
+    function setGenerating(isGenerating) {
+      sendBtn.disabled = isGenerating;
+      stopBtn.classList.toggle("hidden", !isGenerating);
+      sendBtnText.innerHTML = isGenerating
+        ? '<span class="animate-spin inline-block" aria-hidden="true">⏳</span><span class="sr-only">Идёт генерация</span>'
+        : "Спросить";
+    }
+
+    function clearConversation() {
+      if (!confirm("Очистить диалог? Это действие нельзя отменить.")) return;
+      if (activeController) activeController.abort();
+      messages.innerHTML = welcomeHtml();
+      container.focus({ preventScroll: true });
+      setSrStatus("Диалог очищен.");
+    }
+
+    function dismissOnboarding() {
+      markOnboardingSeen();
+      $("welcomePanel")?.remove();
+      if (!messages.children.length) messages.innerHTML = simpleGreetingHtml;
+      container.focus({ preventScroll: true });
+      setSrStatus("Подсказка скрыта.");
+    }
+
+    function showOnboarding() {
+      try { localStorage.removeItem(ONBOARDING_KEY); } catch (e) {}
+      if (!messages.querySelector(".ai-card")) {
+        messages.innerHTML = onboardingHtml;
+      } else if (!$("welcomePanel")) {
+        messages.insertAdjacentHTML("afterbegin", onboardingHtml);
+      }
+      if (hasCourseDocuments !== null) applyOnboardingAvailability(hasCourseDocuments, canManageDocuments);
+      container.scrollTop = 0;
+      setSrStatus("Подсказка открыта.");
+    }
+
+    stopBtn.addEventListener("click", () => {
+      if (activeController) activeController.abort();
+    });
+
+    function showAnswerError(msgId, message, question) {
+      const msgEl = $(`${msgId}_box`)?.closest(".ai-card");
+      if (!msgEl) return;
+      const thinking = $(`${msgId}_thinking`);
+      const text = $(`${msgId}_text`);
+      const actions = $(`${msgId}_actions`);
+      if (thinking) thinking.classList.add("hidden");
+      if (text) {
+        text.classList.remove("hidden");
+        text.innerHTML = `<div class="text-xs text-red-600 dark:text-red-400" role="alert">${escapeHtml(message)}</div>
+          <button type="button" data-retry-question="${escapeHtml(question)}" class="mt-2 px-3 py-1.5 border border-slate-300 dark:border-zinc-700 rounded text-xs font-medium text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">Повторить</button>`;
+      }
+      if (actions) actions.classList.add("hidden");
+      setSrStatus(message);
+    }
+
+    function setAnswerStatus(msgId, hasSources, isFound) {
+      const status = $(`${msgId}_status`);
+      if (!status) return;
+      const feedback = $(`${msgId}_feedback`);
+      if (feedback) feedback.classList.toggle("hidden", !hasSources || isFound === false);
+      if (isFound === false) {
+        status.textContent = "Нет в материалах";
+        status.className = "mono text-[11px] text-amber-600 dark:text-amber-400 font-semibold";
+      } else if (hasSources) {
+        status.textContent = "Проверено по материалам";
+        status.className = "mono text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold";
+      } else {
+        status.textContent = "Ответ без источников";
+        status.className = "mono text-[11px] text-slate-600 dark:text-zinc-300 font-semibold";
+      }
+    }
+
+    async function sendQuestion(question) {
+      const q = String(question || "").trim();
+      if (!q) return;
+      markOnboardingSeen();
+      if (activeController) activeController.abort();
+      const controller = new AbortController();
+      activeController = controller;
+      setGenerating(true);
+      textarea.value = "";
+      textarea.style.height = "auto";
+
+      messages.insertAdjacentHTML("beforeend", `
+        <div class="flex justify-end">
+          <div class="bg-[#310CB5] text-white text-sm py-2 px-3.5 rounded-lg max-w-xl leading-relaxed shadow-sm break-words">${escapeHtml(q)}</div>
+        </div>`);
+
+      const msgId = "ai_" + Date.now();
+      const msgEl = document.createElement("div");
+      msgEl.className = "flex gap-3 ai-card";
+      msgEl.setAttribute("data-q", q);
+      msgEl.innerHTML = `
+        <div class="w-6 h-6 rounded bg-[#310CB5] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5" aria-hidden="true">?</div>
+        <div class="flex-1 space-y-2 max-w-xl">
+          <div id="${msgId}_box" class="text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-3.5 rounded-lg text-slate-800 dark:text-zinc-200 leading-relaxed shadow-sm">
+            <div id="${msgId}_thinking" class="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 py-1">
+              <span class="inline-block animate-spin" aria-hidden="true">🌀</span>
+              <span>Ищу в материалах курса и формулирую ответ...</span>
+            </div>
+            <div id="${msgId}_text" class="msg-body prose dark:prose-invert text-sm max-w-none hidden"></div>
+            <div id="${msgId}_sources" class="hidden mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 space-y-1.5"></div>
+            <div id="${msgId}_actions" class="hidden flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-zinc-400 pt-2 px-1 border-t border-slate-100 dark:border-zinc-800/80 mt-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <button type="button" onclick="copyAnswer(this)" class="inline-flex items-center min-h-11 px-1 hover:text-slate-700 dark:hover:text-zinc-300 transition">Копировать</button>
+                <span>·</span>
+                <div id="${msgId}_feedback" class="flex items-center gap-1.5">
+                  <span>Полезно?</span>
+                  <button type="button" onclick="rateAnswer(this, true)" class="inline-flex items-center min-h-11 px-2 hover:text-[#310CB5] dark:hover:text-indigo-400 transition">Да</button>
+                  <span>/</span>
+                  <button type="button" onclick="rateAnswer(this, false)" class="inline-flex items-center min-h-11 px-2 hover:text-red-500 transition">Нет</button>
+                </div>
+              </div>
+              <span id="${msgId}_status" class="mono text-[11px] text-[#310CB5] dark:text-indigo-400 font-semibold">Завершено</span>
+            </div>
+          </div>
+        </div>`;
+      messages.appendChild(msgEl);
+      msgEl.tabIndex = -1;
+      msgEl.focus({ preventScroll: true });
+      container.scrollTop = container.scrollHeight;
+      setSrStatus("Ищу ответ в материалах курса.");
+
+      let rawAnswer = "";
+      let hasSources = false;
+      let isFound = true;
+      try {
+        const response = await fetch("/api/chat/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+          body: JSON.stringify({ question: q }),
+          signal: controller.signal
+        });
+        if (!response.ok) throw new Error(await readError(response));
+        if (!response.body) throw new Error("Сервер не вернул поток ответа.");
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        const textContainer = $(`${msgId}_text`);
+        const thinkingContainer = $(`${msgId}_thinking`);
+        const sourcesContainer = $(`${msgId}_sources`);
+        const actionsContainer = $(`${msgId}_actions`);
+        let isFirstToken = true;
+        let buffer = "";
+
+        const handleEvent = (eventBlock) => {
+          const dataLine = eventBlock.split("\n").find((line) => line.startsWith("data: "));
+          if (!dataLine) return;
+          const payloadStr = dataLine.slice(6).trim();
+          if (!payloadStr) return;
+          if (payloadStr === "[DONE]") {
+            actionsContainer.classList.remove("hidden");
+            setAnswerStatus(msgId, hasSources, isFound);
+            setSrStatus(hasSources ? "Ответ получен. Источники доступны в карточке." : "Ответ получен без источников.");
+            return;
+          }
+          try {
+            const payload = JSON.parse(payloadStr);
+            if (payload.type === "meta") {
+              hasSources = Array.isArray(payload.sources) && payload.sources.length > 0;
+              isFound = payload.is_found !== false;
+              if (hasSources) {
+                sourcesContainer.classList.remove("hidden");
+                sourcesContainer.innerHTML = '<span class="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block mb-1">Источники цитат:</span>' +
+                  payload.sources.map((s) => `
+                    <details class="group border border-slate-200 dark:border-zinc-800 rounded bg-slate-50/50 dark:bg-zinc-800/40 text-xs transition">
+                      <summary class="cursor-pointer min-h-11 py-2.5 px-2.5 flex items-center justify-between text-slate-700 dark:text-zinc-300 hover:text-[#310CB5] dark:hover:text-indigo-400 font-medium select-none">
+                        <span class="flex items-center gap-1.5 min-w-0">
+                          <svg aria-hidden="true" class="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400 shrink-0 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                          <span class="truncate">${escapeHtml(s.document)} · Стр. ${escapeHtml(s.page)}</span>
+                        </span>
+                        <span class="text-[11px] text-slate-600 dark:text-zinc-300 mono font-normal shrink-0">показать цитату</span>
+                      </summary>
+                      <div class="px-3 py-2 text-[11px] text-slate-600 dark:text-zinc-400 border-t border-slate-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-950/70 mono leading-relaxed whitespace-pre-wrap break-words">${escapeHtml(s.text)}</div>
+                    </details>`).join("");
+              }
+            } else if (payload.type === "token") {
+              if (isFirstToken) {
+                thinkingContainer.classList.add("hidden");
+                textContainer.classList.remove("hidden");
+                isFirstToken = false;
+              }
+              rawAnswer += payload.token;
+              textContainer.innerHTML = renderSafeMarkdown(rawAnswer);
+              container.scrollTop = container.scrollHeight;
+            }
+          } catch (jsonErr) {
+            // Ignore malformed events; keep the stream alive.
+          }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const events = buffer.split("\n\n");
+          buffer = events.pop() || "";
+          for (const eventBlock of events) handleEvent(eventBlock);
+        }
+        buffer += decoder.decode();
+        if (buffer.trim()) handleEvent(buffer);
+        if (actionsContainer.classList.contains("hidden")) {
+          actionsContainer.classList.remove("hidden");
+          setAnswerStatus(msgId, hasSources, isFound);
+        }
+      } catch (err) {
+        if (err.name === "AbortError") {
+          if (!msgEl.isConnected) return;
+          const thinking = $(`${msgId}_thinking`);
+          const text = $(`${msgId}_text`);
+          if (thinking) thinking.classList.add("hidden");
+          if (text) {
+            text.classList.remove("hidden");
+            if (!rawAnswer) text.innerHTML = '<div class="text-xs text-slate-500 dark:text-zinc-400">Генерация остановлена.</div>';
+          }
+          const actions = $(`${msgId}_actions`);
+          if (actions) {
+            actions.classList.remove("hidden");
+            const status = $(`${msgId}_status`);
+            if (status) {
+              status.textContent = "Остановлено";
+              status.className = "mono text-[11px] text-slate-600 dark:text-zinc-300 font-semibold";
+            }
+          }
+          setSrStatus("Генерация остановлена.");
+        } else {
+          if (!msgEl.isConnected) return;
+          showAnswerError(msgId, `Не удалось получить ответ: ${err.message}`, q);
+        }
+      } finally {
+        if (activeController === controller) {
+          activeController = null;
+          setGenerating(false);
+        }
+      }
+    }
+
+    chatForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      sendQuestion(textarea.value);
+    });
+
+    messages.addEventListener("click", (e) => {
+      const sample = e.target.closest("[data-sample-question]");
+      if (sample) {
+        sendQuestion(sample.getAttribute("data-sample-question"));
+        return;
+      }
+      const retry = e.target.closest("[data-retry-question]");
+      if (retry) {
+        sendQuestion(retry.getAttribute("data-retry-question"));
+        return;
+      }
+      if (e.target.closest("[data-dismiss-onboarding]")) dismissOnboarding();
+    });
+  </script>
+</body>
+</html>
