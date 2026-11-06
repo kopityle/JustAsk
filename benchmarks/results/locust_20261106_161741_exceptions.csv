@@ -1,0 +1,14 @@
+Count,Message,Traceback,Nodes
+2,Fast-fail слишком медленный: 1015.7662000274286ms,"  File ""C:\Users\Victoria\Lib\site-packages\locust\user\task.py"", line 363, in run
+    self.execute_next_task()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File ""C:\Users\Victoria\Lib\site-packages\locust\user\task.py"", line 396, in execute_next_task
+    self.execute_task(self._task_queue.popleft())
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""C:\Users\Victoria\Lib\site-packages\locust\user\task.py"", line 513, in execute_task
+    task(self.user)
+    ~~~~^^^^^^^^^^^
+  File ""C:\Users\Victoria\REPOSITORIY\ai_tutor\benchmarks\load_test_sse.py"", line 76, in ask_offtopic_question
+    assert duration < 500, f""Fast-fail слишком медленный: {duration}ms""
+           ^^^^^^^^^^^^^^
+",local
