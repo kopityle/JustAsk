@@ -1,0 +1,64 @@
+# Local runtime data and heavy binaries
+data/
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.zip
+*.tar
+*.gz
+*.7z
+*.db
+*.sqlite
+*.sqlite3
+
+# Tool state and generated reports
+.opencode/
+.impeccable/
+.refact/
+.git/
+repomix-output.*
+htmlcov/
+
+# Benchmarks, Locust artifacts & heavy dumps (Экономит контекст LLM!)
+*.csv
+benchmarks/results/*.html
+benchmarks/results/locust_*
+benchmarks/results/40_questions_202*.md
+screenshots/
+benchmarks/screenshots/
+test-results/
+playwright-report/
+
+# Dependencies, caches, and build output
+node_modules/
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage/
+dist/
+build/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.log
+*.pid
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
