@@ -24,28 +24,47 @@ echo [OK] Python найден.
 
 echo.
 echo ============================================================
-echo  [2/5] Проверяем виртуальное окружение venv...
+echo  [2/5] Проверяем Python-окружение...
 echo ============================================================
-if not exist venv\Scripts\python.exe (
-    echo [*] Создаём venv...
-    python -m venv venv
-    if errorlevel 1 (
-        echo [!] Не удалось создать venv.
-        pause
-        exit /b 1
+if exist venv\Scripts\activate.bat (
+    call venv\Scripts\activate.bat
+    if not exist venv\.installed (
+        echo [*] Ставим зависимости - первый запуск, пару минут...
+        python -m pip install -r requirements.txt
+        if errorlevel 1 (
+            echo [!] Ошибка установки зависимостей.
+            pause
+            exit /b 1
+        )
+        type nul > venv\.installed
     )
-)
-call venv\Scripts\activate.bat
-if not exist venv\.installed (
-    echo [*] Ставим зависимости - первый запуск, пару минут...
-    python -m pip install --upgrade pip
-    python -m pip install -r requirements.txt
-    if errorlevel 1 (
-        echo [!] Ошибка установки зависимостей.
-        pause
-        exit /b 1
+    echo [OK] Использую venv.
+) else (
+    python -c "import fastapi, uvicorn, chromadb" >nul 2>nul
+    if not errorlevel 1 (
+        echo [OK] Зависимости уже в системном Python, venv не нужен.
+    ) else (
+        echo [*] Зависимостей нет. Пробую создать venv...
+        python -m venv venv 2>nul
+        if errorlevel 1 (
+            echo.
+            echo  [!] Установите зависимости вручную:
+            echo      python -m pip install -r requirements.txt
+            echo  (или установите полный Python 3.10+ с python.org
+            echo   с галочкой "Add to PATH" и снова запустите start.bat)
+            start https://www.python.org/downloads/
+            pause
+            exit /b 1
+        )
+        call venv\Scripts\activate.bat
+        python -m pip install -r requirements.txt
+        if errorlevel 1 (
+            echo [!] Ошибка установки зависимостей.
+            pause
+            exit /b 1
+        )
+        type nul > venv\.installed
     )
-    type nul > venv\.installed
 )
 echo [OK] Окружение готово.
 
@@ -106,5 +125,5 @@ echo ============================================================
 echo  [5/5] Запуск JustAsk на http://localhost:8000
 echo ============================================================
 start http://localhost:8000
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 pause
