@@ -53,14 +53,27 @@ echo ""
 echo "==================================================="
 echo "🐍 [3/4] Проверяем Python и зависимости..."
 echo "==================================================="
-if [ ! -d "venv" ]; then
-    echo "[!] Создаём venv..."
-    python3 -m venv venv
+if [ -f "venv/bin/activate" ]; then
     source venv/bin/activate
-    pip install --upgrade pip
-    pip install -r requirements.txt
+    if [ ! -f "venv/.installed" ]; then
+        echo "[*] Ставим зависимости - первый запуск, пару минут..."
+        pip install -r requirements.txt || { echo "[!] Ошибка установки зависимостей."; exit 1; }
+        touch venv/.installed
+    fi
+    echo "[OK] Использую venv."
+elif python3 -c "import fastapi, uvicorn, chromadb" 2>/dev/null; then
+    echo "[OK] Зависимости уже в системном Python, venv не нужен."
 else
+    echo "[*] Зависимостей нет. Пробую создать venv..."
+    if ! python3 -m venv venv; then
+        echo "[!] Не удалось создать venv."
+        echo "    На Debian/Ubuntu: sudo apt install python3-venv python3-pip"
+        echo "    Или установите зависимости вручную: python3 -m pip install -r requirements.txt"
+        exit 1
+    fi
     source venv/bin/activate
+    pip install -r requirements.txt || { echo "[!] Ошибка установки зависимостей."; exit 1; }
+    touch venv/.installed
 fi
 echo "[OK] Окружение Python готово!"
 
@@ -69,4 +82,4 @@ echo "==================================================="
 echo "🌐 [4/4] Запуск JustAsk на порту 8000..."
 echo "==================================================="
 # На сервере запускаем без --reload (он тратит ресурсы и нужен только при разработке)
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+exec python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
