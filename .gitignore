@@ -25,6 +25,7 @@ data/chroma/
 .vscode/
 *.swp
 *.swo
+docs/.obsidian/workspace.json
 
 # Системные файлы ОС
 .DS_Store
