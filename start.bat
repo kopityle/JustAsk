@@ -1,45 +1,110 @@
 @echo off
+chcp 65001 >nul
 title JustAsk AI Tutor
 
-REM 1) Parallel inference slots in Ollama
+REM === Golden config for 8GB RAM (must be set BEFORE ollama starts) ===
 set OLLAMA_NUM_PARALLEL=2
-
-REM 2) Number of models kept loaded at once
 set OLLAMA_MAX_LOADED_MODELS=1
-
-REM 3) Never unload models while idle
 set OLLAMA_KEEP_ALIVE=60m
-
-REM 4) Allow guest writes for debugging uploads
 set ALLOW_GUEST_WRITES=true
 
-echo ===================================================
-echo [1/3] Checking Ollama...
-echo ===================================================
-curl -s http://localhost:11434 > nul
-if %errorlevel% neq 0 (
-    echo [!] Starting Ollama in a separate window...
+echo ============================================================
+echo  [1/5] Проверяем Python...
+echo ============================================================
+where python >nul 2>nul
+if errorlevel 1 (
+    echo.
+    echo  [!] Установите Python 3.10+ с галочкой "Add to PATH"
+    echo  Открываю python.org...
+    start https://www.python.org/downloads/
+    pause
+    exit /b 1
+)
+echo [OK] Python найден.
+
+echo.
+echo ============================================================
+echo  [2/5] Проверяем виртуальное окружение venv...
+echo ============================================================
+if not exist venv\Scripts\python.exe (
+    echo [*] Создаём venv...
+    python -m venv venv
+    if errorlevel 1 (
+        echo [!] Не удалось создать venv.
+        pause
+        exit /b 1
+    )
+)
+call venv\Scripts\activate.bat
+if not exist venv\.installed (
+    echo [*] Ставим зависимости - первый запуск, пару минут...
+    python -m pip install --upgrade pip
+    python -m pip install -r requirements.txt
+    if errorlevel 1 (
+        echo [!] Ошибка установки зависимостей.
+        pause
+        exit /b 1
+    )
+    type nul > venv\.installed
+)
+echo [OK] Окружение готово.
+
+echo.
+echo ============================================================
+echo  [3/5] Проверяем Ollama...
+echo ============================================================
+where ollama >nul 2>nul
+if errorlevel 1 (
+    echo.
+    echo  [!] Не установлена Ollama. Скачайте её: https://ollama.com
+    echo  Открываю сайт...
+    start https://ollama.com
+    pause
+    exit /b 1
+)
+curl -s http://localhost:11434 >nul 2>nul
+if errorlevel 1 (
+    echo [*] Стартую Ollama в отдельном окне...
     start "Ollama" cmd /k ollama serve
-    timeout /t 3 /nobreak > nul
 ) else (
-    echo [OK] Ollama is already running in background.
+    echo [OK] Ollama уже работает.
 )
 
-echo.
-echo ===================================================
-echo [2/3] Activating Python venv...
-echo ===================================================
-if exist venv\Scripts\activate (
-    call venv\Scripts\activate
-) else (
-    echo [!] venv folder not found, using system Python.
+set /a TRIES=0
+:wait_ollama
+ollama list >nul 2>nul
+if not errorlevel 1 goto ollama_ok
+set /a TRIES+=1
+if %TRIES% geq 15 (
+    echo [!] Ollama не отвечает. Проверьте окно Ollama.
+    pause
+    exit /b 1
 )
+timeout /t 1 /nobreak >nul
+goto wait_ollama
+:ollama_ok
+echo [OK] Ollama отвечает.
 
 echo.
-echo ===================================================
-echo [3/3] Starting FastAPI...
-echo ===================================================
+echo ============================================================
+echo  [4/5] Проверяем модель llama3.2:3b...
+echo ============================================================
+ollama list 2>nul | findstr /c:"llama3.2:3b" >nul
+if errorlevel 1 (
+    echo [!] Модель llama3.2:3b не найдена. Начинаем загрузку ~2 ГБ...
+    ollama pull llama3.2:3b
+    if errorlevel 1 (
+        echo [!] Ошибка загрузки модели.
+        pause
+        exit /b 1
+    )
+)
+echo [OK] Модель на месте.
+
+echo.
+echo ============================================================
+echo  [5/5] Запуск JustAsk на http://localhost:8000
+echo ============================================================
 start http://localhost:8000
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
 pause

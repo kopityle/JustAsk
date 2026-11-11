@@ -5,10 +5,10 @@ echo "==================================================="
 echo "🚀 [1/4] Настройка и запуск Ollama для многопоточности..."
 echo "==================================================="
 
-# Экспортируем переменные окружения для инференса
-export OLLAMA_NUM_PARALLEL=3
-export OLLAMA_MAX_LOADED_MODELS=2
-export OLLAMA_KEEP_ALIVE=-1
+# Экспортируем переменные окружения для инференса (золотой конфиг под 8 ГБ)
+export OLLAMA_NUM_PARALLEL=2
+export OLLAMA_MAX_LOADED_MODELS=1
+export OLLAMA_KEEP_ALIVE=60m
 
 # 1. Если Ollama не установлена — ставим
 if ! command -v ollama &> /dev/null; then
@@ -22,16 +22,16 @@ if systemctl is-active --quiet ollama 2>/dev/null; then
     sudo mkdir -p /etc/systemd/system/ollama.service.d
     cat <<EOF | sudo tee /etc/systemd/system/ollama.service.d/override.conf > /dev/null
 [Service]
-Environment="OLLAMA_NUM_PARALLEL=3"
-Environment="OLLAMA_MAX_LOADED_MODELS=2"
-Environment="OLLAMA_KEEP_ALIVE=-1"
+Environment="OLLAMA_NUM_PARALLEL=2"
+Environment="OLLAMA_MAX_LOADED_MODELS=1"
+Environment="OLLAMA_KEEP_ALIVE=60m"
 EOF
     sudo systemctl daemon-reload
     sudo systemctl restart ollama
     sleep 2
 elif ! curl -s http://localhost:11434 > /dev/null; then
     # Если systemd нет (например, внутри Docker), стартуем руками в фоне
-    echo "[!] Запускаем фоновый процесс Ollama с пулом на 3 слота..."
+    echo "[!] Запускаем фоновый процесс Ollama (2 слота инференса)..."
     ollama serve > /tmp/ollama.log 2>&1 &
     sleep 3
 fi
@@ -46,11 +46,7 @@ if ! ollama list | grep -q "llama3.2:3b"; then
     echo "[!] Скачиваем llama3.2:3b..."
     ollama pull llama3.2:3b
 fi
-
-if ! ollama list | grep -q "nomic-embed-text"; then
-    echo "[!] Скачиваем nomic-embed-text..."
-    ollama pull nomic-embed-text
-fi
+# Эмбеддинги считаются FastEmbed в Python — отдельная Ollama-модель не нужна
 echo "[OK] Модели готовы!"
 
 echo ""
