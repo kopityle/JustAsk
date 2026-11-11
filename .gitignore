@@ -15,6 +15,13 @@ htmlcov/
 data/chroma/
 *.pid
 
+# Учебные PDF (копирайт) и рантайм-данные
+data/docs/*.pdf
+data/feedback.*
+
+# Интерактивные Locust-отчёты (остаются локально, в репо PDF-экспорт)
+benchmarks/results/*.html
+
 # Служебные папки агентов 
 .opencode/
 .impeccable/
