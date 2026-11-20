@@ -80,9 +80,9 @@ async def lti_launch(request: Request):
     form_dict = {key: str(value) for key, value in form.items()}
 
     # КЛЮЧЕВОЙ МОМЕНТ:
-    # Moodle подписывает запрос на HTTPS адрес, даже если внутренне туннель HTTP
-    # Берем хост из заголовка, который передал Cloudflare
-    proto = "https"
+    # Moodle подписывает публичный URL. За туннелем/прокси внутренняя схема может быть http,
+    # поэтому берём протокол из X-Forwarded-Proto, а при его отсутствии — из request.url.scheme.
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme).split(",")[0].strip()
     host = request.headers.get("host")
     public_uri = f"{proto}://{host}{request.url.path}"
 

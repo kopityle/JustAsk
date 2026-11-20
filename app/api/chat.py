@@ -90,7 +90,11 @@ async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization
                 msg = "В материалах курса ответ на этот вопрос не найден."
                 yield f"data: {json.dumps({'type': 'token', 'token': msg}, ensure_ascii=False)}\n\n"
                 yield "data: [DONE]\n\n"
-            return StreamingResponse(fast_reject_stream(), media_type="text/event-stream")
+            return StreamingResponse(
+                fast_reject_stream(),
+                media_type="text/event-stream",
+                headers={"X-Accel-Buffering": "no"},
+            )
 
         seen_pages = set()
         for c in chunks:
@@ -101,7 +105,7 @@ async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization
 
     async def event_generator():
         try:
-            # Ждем свободный слот не дольше 25 секунд
+            # Ждем свободный слот не дольше 40 секунд
             await asyncio.wait_for(inference_semaphore.acquire(), timeout=40.0)
         except asyncio.TimeoutError:
             yield f"data: {json.dumps({'type': 'token', 'token': '⚠️ Сервер сейчас перегружен большим количеством вопросов. Пожалуйста, повторите попытку через минуту.'}, ensure_ascii=False)}\n\n"
@@ -127,7 +131,11 @@ async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization
 
         yield "data: [DONE]\n\n"
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"X-Accel-Buffering": "no"},
+    )
 
 @router.post("/feedback")
 def submit_feedback(req: FeedbackRequest):

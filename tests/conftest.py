@@ -19,6 +19,9 @@ def mock_ollama():
     with patch("app.main.vector_store.count", return_value=1), patch(
         "app.services.vector_store.FastEmbedFunction.__call__",
         side_effect=lambda input: [[0.0] * 8 for _ in input],
+    ), patch(
+        "app.services.vector_store.FastEmbedFunction._get_model",
+        return_value=None,
     ):
         yield
 
