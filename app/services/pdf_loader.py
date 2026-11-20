@@ -33,6 +33,25 @@ def clean_pdf_text(text: str) -> str:
     return text.strip()
 
 
+def _hard_split_text(text: str, chunk_size: int, overlap: int) -> List[str]:
+    """Режет слишком длинный фрагмент, стараясь попасть в границу слова."""
+    pieces = []
+    start = 0
+    while start < len(text):
+        end = min(start + chunk_size, len(text))
+        if end < len(text):
+            space = text.rfind(" ", start + 1, end)
+            if space > start:
+                end = space
+        piece = text[start:end].strip()
+        if piece:
+            pieces.append(piece)
+        if end >= len(text):
+            break
+        start = max(start + 1, end - overlap)
+    return pieces
+
+
 def split_text_clean(text: str, chunk_size: int = 1000, overlap: int = 150) -> List[str]:
     """Разбивает текст по абзацам и предложениям, гарантируя отсутствие разорванных слов."""
     if not text:
@@ -42,13 +61,21 @@ def split_text_clean(text: str, chunk_size: int = 1000, overlap: int = 150) -> L
     raw_blocks = re.split(r'\n\s*\n', text)
     blocks = []
     
-    # Если абзац больше chunk_size, делим его по предложениям
+    # Если абзац больше chunk_size, делим его по предложениям, затем принудительно по словам
     for b in raw_blocks:
         b = b.strip()
+        if not b:
+            continue
         if len(b) > chunk_size:
-            sentences = re.split(r'(?<=[.!?])\s+', b)
-            blocks.extend(sentences)
-        elif b:
+            for sentence in re.split(r'(?<=[.!?])\s+', b):
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
+                if len(sentence) > chunk_size:
+                    blocks.extend(_hard_split_text(sentence, chunk_size, overlap))
+                else:
+                    blocks.append(sentence)
+        else:
             blocks.append(b)
 
     chunks = []
@@ -95,15 +122,25 @@ def load_and_chunk_file(file_path: str) -> List[Dict]:
                         "text": c
                     })
     elif file_path.lower().endswith(".txt"):
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-            text = clean_pdf_text(f.read())
-            txt_chunks = split_text_clean(text, chunk_size=1000, overlap=150)
-            for c in txt_chunks:
-                chunks.append({
-                    "document": doc_name,
-                    "page": 1,
-                    "text": c
-                })
+        with open(file_path, "rb") as f:
+            raw = f.read()
+        text = ""
+        for encoding in ("utf-8-sig", "cp1251"):
+            try:
+                text = raw.decode(encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        if not text:
+            text = raw.decode("utf-8", errors="ignore")
+        text = clean_pdf_text(text)
+        txt_chunks = split_text_clean(text, chunk_size=1000, overlap=150)
+        for c in txt_chunks:
+            chunks.append({
+                "document": doc_name,
+                "page": 1,
+                "text": c
+            })
     elif file_path.lower().endswith(".docx"):
         from docx import Document
         from docx.table import Table

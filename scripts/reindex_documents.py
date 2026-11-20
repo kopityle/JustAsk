@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from app.api.documents import safe_course_id
 from app.core.config import settings
 from app.services.pdf_loader import load_and_chunk_file
 from app.services.vector_store import vector_store
@@ -23,15 +24,16 @@ def main() -> None:
         print("This removes existing chunks for the course. Re-run with --yes.")
         return
 
-    docs_dir = Path(settings.DOCS_DIR)
+    course_id = safe_course_id(args.course_id)
+    docs_dir = Path(settings.DOCS_DIR) / course_id
     files = sorted(
         path
         for path in docs_dir.iterdir()
-        if path.is_file() and path.suffix.lower() in {".pdf", ".txt"}
+        if path.is_file() and path.suffix.lower() in {".pdf", ".txt", ".docx"}
     ) if docs_dir.exists() else []
 
-    removed = vector_store.count()
-    vector_store.reset_collection()
+    # Удаляем чанки только переиндексируемого курса — остальные курсы не трогаем.
+    removed = vector_store.delete_course(course_id)
     total_chunks = 0
 
     for path in files:
@@ -39,7 +41,7 @@ def main() -> None:
         if not chunks:
             print(f"[SKIP] {path.name}: no text found")
             continue
-        vector_store.add_chunks(chunks, course_id=args.course_id)
+        vector_store.add_chunks(chunks, course_id=course_id)
         total_chunks += len(chunks)
         print(f"[OK] {path.name}: {len(chunks)} chunks")
 

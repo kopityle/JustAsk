@@ -1,4 +1,8 @@
+import sys
+from pathlib import Path
+
 import pytest
+import pymupdf
 from app.core.config import settings
 from app.services.pdf_loader import clean_pdf_text, load_and_chunk_file, split_text_clean
 from app.services.vector_store import FastEmbedFunction, VectorStore
@@ -39,6 +43,96 @@ def test_load_and_chunk_docx(tmp_path):
     assert "Задание" in joined
     assert "Второй абзац" in joined
     assert max(chunk["page"] for chunk in chunks) >= 2
+
+
+def test_load_and_chunk_pdf_multipage_with_hyphen_break(tmp_path):
+    path = tmp_path / "multi.pdf"
+    document = pymupdf.open()
+    document.new_page()  # пустая страница должна быть пропущена
+    page = document.new_page()
+    page.insert_text((72, 72), "infor-")
+    page.insert_text((72, 90), "mation")
+    document.new_page().insert_text((72, 72), "third page content")
+    document.save(str(path))
+    document.close()
+
+    chunks = load_and_chunk_file(str(path))
+    assert chunks
+    assert all(chunk["page"] >= 2 for chunk in chunks)
+    assert "information" in "\n".join(chunk["text"] for chunk in chunks)
+    assert any(chunk["page"] == 3 for chunk in chunks)
+
+
+def test_load_and_chunk_txt_utf8_and_cp1251(tmp_path):
+    text = "Привет, кириллица!"
+    utf8_path = tmp_path / "utf8.txt"
+    utf8_path.write_bytes(b"\xef\xbb\xbf" + text.encode("utf-8"))
+    cp1251_path = tmp_path / "cp1251.txt"
+    cp1251_path.write_bytes(text.encode("cp1251"))
+
+    for path in (utf8_path, cp1251_path):
+        chunks = load_and_chunk_file(str(path))
+        assert chunks
+        assert text in "\n".join(chunk["text"] for chunk in chunks)
+
+
+def test_split_text_clean_long_block_without_punctuation():
+    text = "абвгдежзий" * 400
+    chunks = split_text_clean(text, chunk_size=100, overlap=20)
+    assert len(chunks) > 1
+    assert all(len(chunk) <= 100 for chunk in chunks)
+
+
+def test_reindex_documents_scans_course_folder_and_docx(tmp_path, monkeypatch):
+    from scripts import reindex_documents
+
+    docs_root = tmp_path / "docs"
+    course_dir = docs_root / "course_a"
+    course_dir.mkdir(parents=True)
+    (course_dir / "lecture.pdf").write_bytes(b"pdf")
+    (course_dir / "practice.docx").write_bytes(b"docx")
+    (course_dir / "ignored.exe").write_bytes(b"exe")
+    other_dir = docs_root / "course_b"
+    other_dir.mkdir()
+    (other_dir / "other.pdf").write_bytes(b"pdf")
+
+    class FakeVectorStore:
+        def __init__(self):
+            self.deleted = []
+            self.added = []
+            self.reset_calls = 0
+
+        def delete_course(self, course_id):
+            self.deleted.append(course_id)
+            return 3
+
+        def add_chunks(self, chunks, course_id):
+            self.added.append((course_id, chunks))
+
+        def reset_collection(self):
+            self.reset_calls += 1
+
+    fake_store = FakeVectorStore()
+    monkeypatch.setattr(reindex_documents, "vector_store", fake_store)
+    monkeypatch.setattr(
+        reindex_documents,
+        "load_and_chunk_file",
+        lambda path: [{"document": Path(path).name, "page": 1, "text": "text"}],
+    )
+    monkeypatch.setattr(settings, "DOCS_DIR", str(docs_root))
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["reindex_documents.py", "--course-id", "course_a", "--yes"],
+    )
+
+    reindex_documents.main()
+
+    assert fake_store.deleted == ["course_a"]
+    assert fake_store.reset_calls == 0
+    assert all(course_id == "course_a" for course_id, _ in fake_store.added)
+    indexed = {chunk["document"] for _, chunks in fake_store.added for chunk in chunks}
+    assert indexed == {"lecture.pdf", "practice.docx"}
 
 
 def test_split_text_clean_boundaries():
