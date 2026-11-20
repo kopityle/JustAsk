@@ -11,16 +11,33 @@
       darkMode: 'class',
       theme: {
         extend: {
+          fontFamily: {
+            sans: ['Moderustic', 'sans-serif'],
+          },
           colors: { 
             brand: { 
-              600: '#310CB5', 
-              700: '#270894' 
-            } 
+              500: '#0C36CD',
+              600: '#0C36CD', 
+              700: '#0A005A', 
+            },
+            canvas: {
+              light: '#F7F7F5',
+              dark: '#18181B',
+            },
+            alert: {
+              notfound: '#FF5500',
+              error: '#C5161D',
+            }
           }
         }
       }
     }
   </script>
+
+  <!-- Подключаем официальный шрифт Moderustic -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Moderustic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.1/marked.min.js"></script>
@@ -28,8 +45,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
   <style>
-    @import url("https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
-    body { font-family: "Golos Text", sans-serif; }
+    body { font-family: "Moderustic", sans-serif; }
     .onboarding-title { font-size: 20px; line-height: 1.3; }
     .mono { font-family: "JetBrains Mono", monospace; }
     pre code { border-radius: 6px; font-family: "JetBrains Mono", monospace; font-size: 12px; }
@@ -38,7 +54,7 @@
     .dark .custom-scroll::-webkit-scrollbar-thumb { background: #334155; }
     details summary::-webkit-details-marker { display:none; }
     details summary { list-style: none; }
-    button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid #310CB5; outline-offset: 2px; }
+    button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid #0C36CD; outline-offset: 2px; }
     .dark button:focus-visible, .dark a:focus-visible, .dark textarea:focus-visible, .dark summary:focus-visible { outline-color: #a5b4fc; }
   @media (min-width: 1024px) {
       #sidebar.desktop-closed {
@@ -47,7 +63,7 @@
       }
     }
 </style>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23310CB5%22><path d=%22M12 2C6.48 2 2 6.48 2 12c0 1.84.5 3.56 1.35 5.04L2 22l4.96-1.35C8.44 21.5 10.16 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.03-.42 1.98-1.07 2.75z%22/></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%230C36CD%22><path d=%22M12 2C6.48 2 2 6.48 2 12c0 1.84.5 3.56 1.35 5.04L2 22l4.96-1.35C8.44 21.5 10.16 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.03-.42 1.98-1.07 2.75z%22/></svg>">
 </head>
 <body class="bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 flex h-screen overflow-hidden transition-colors duration-200">
   
@@ -55,10 +71,10 @@
     <div class="p-4 flex flex-col h-full overflow-hidden">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800 mb-4">
         <div class="flex items-center gap-2.5">
-          <div class="w-7 h-7 rounded-lg bg-[#310CB5] text-white flex items-center justify-center shadow-sm">
+          <div class="w-7 h-7 rounded-lg bg-[#0C36CD] text-white flex items-center justify-center shadow-sm">
             <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.84.5 3.56 1.35 5.04L2 22l4.96-1.35C8.44 21.5 10.16 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.03-.42 1.98-1.07 2.75z"/></svg>
           </div>
-          <span class="font-bold text-base tracking-tight text-slate-900 dark:text-white">just<span class="text-[#310CB5]">ask</span></span>
+          <span class="font-bold text-base tracking-tight text-slate-900 dark:text-white">just<span class="text-[#0C36CD]">ask</span></span>
         </div>
         <div class="flex items-center gap-1">
           <span id="roleBadge" class="mono text-[11px] text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded">Гость</span>
@@ -120,7 +136,7 @@
     <div id="messagesContainer" tabindex="-1" aria-label="Диалог с ИИ-наставником" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scroll">
       <div id="messages" class="max-w-2xl mx-auto space-y-4">
         <div id="welcomePanel" class="flex gap-3">
-          <div class="w-6 h-6 rounded bg-[#310CB5] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5" aria-hidden="true">?</div>
+          <div class="w-6 h-6 rounded bg-[#0C36CD] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5" aria-hidden="true">?</div>
           <div class="flex-1 min-w-0">
             <div class="text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-3.5 rounded-lg text-slate-700 dark:text-zinc-300 leading-relaxed shadow-sm">
               <div class="flex items-start justify-between gap-3">
@@ -135,16 +151,16 @@
               <div id="onboardingExamples" class="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800">
                 <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-zinc-300">Например</p>
                 <div class="mt-2 grid gap-2 sm:grid-cols-2">
-                  <button type="button" data-sample-question="Объясни ключевые понятия из первой темы" class="rounded-lg border border-slate-300 dark:border-zinc-700 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-zinc-200 hover:border-[#310CB5] hover:bg-slate-50 hover:text-[#310CB5] dark:hover:border-indigo-400 dark:hover:bg-zinc-800/60 dark:hover:text-indigo-400 transition text-left leading-snug">Объясни ключевые понятия из первой темы</button>
-                  <button type="button" data-sample-question="Разбери основное задание из материалов" class="rounded-lg border border-slate-300 dark:border-zinc-700 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-zinc-200 hover:border-[#310CB5] hover:bg-slate-50 hover:text-[#310CB5] dark:hover:border-indigo-400 dark:hover:bg-zinc-800/60 dark:hover:text-indigo-400 transition text-left leading-snug">Разбери основное задание из материалов</button>
-                  <button type="button" data-sample-question="Покажи пример из материалов курса" class="rounded-lg border border-slate-300 dark:border-zinc-700 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-zinc-200 hover:border-[#310CB5] hover:bg-slate-50 hover:text-[#310CB5] dark:hover:border-indigo-400 dark:hover:bg-zinc-800/60 dark:hover:text-indigo-400 transition text-left leading-snug">Покажи пример из материалов курса</button>
-                  <button type="button" data-sample-question="Какие требования или шаги описаны?" class="rounded-lg border border-slate-300 dark:border-zinc-700 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-zinc-200 hover:border-[#310CB5] hover:bg-slate-50 hover:text-[#310CB5] dark:hover:border-indigo-400 dark:hover:bg-zinc-800/60 dark:hover:text-indigo-400 transition text-left leading-snug">Какие требования или шаги описаны?</button>
+                  <button type="button" data-sample-question="Объясни ключевые понятия из первой темы" class="rounded-lg border border-slate-300 dark:border-zinc-700 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-zinc-200 hover:border-[#0C36CD] hover:bg-slate-50 hover:text-[#0C36CD] dark:hover:border-indigo-400 dark:hover:bg-zinc-800/60 dark:hover:text-indigo-400 transition text-left leading-snug">Объясни ключевые понятия из первой темы</button>
+                  <button type="button" data-sample-question="Разбери основное задание из материалов" class="rounded-lg border border-slate-300 dark:border-zinc-700 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-zinc-200 hover:border-[#0C36CD] hover:bg-slate-50 hover:text-[#0C36CD] dark:hover:border-indigo-400 dark:hover:bg-zinc-800/60 dark:hover:text-indigo-400 transition text-left leading-snug">Разбери основное задание из материалов</button>
+                  <button type="button" data-sample-question="Покажи пример из материалов курса" class="rounded-lg border border-slate-300 dark:border-zinc-700 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-zinc-200 hover:border-[#0C36CD] hover:bg-slate-50 hover:text-[#0C36CD] dark:hover:border-indigo-400 dark:hover:bg-zinc-800/60 dark:hover:text-indigo-400 transition text-left leading-snug">Покажи пример из материалов курса</button>
+                  <button type="button" data-sample-question="Какие требования или шаги описаны?" class="rounded-lg border border-slate-300 dark:border-zinc-700 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-zinc-200 hover:border-[#0C36CD] hover:bg-slate-50 hover:text-[#0C36CD] dark:hover:border-indigo-400 dark:hover:bg-zinc-800/60 dark:hover:text-indigo-400 transition text-left leading-snug">Какие требования или шаги описаны?</button>
                 </div>
               </div>
               <div id="onboardingNoMaterials" class="hidden mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800">
                 <p class="text-sm font-medium text-slate-700 dark:text-zinc-200">Материалы ещё не загружены</p>
                 <p id="onboardingNoMaterialsText" class="mt-1 text-xs text-slate-600 dark:text-zinc-300 leading-relaxed"></p>
-                <button type="button" id="onboardingUploadBtn" onclick="document.getElementById('fileInput').click()" class="hidden mt-2.5 inline-flex items-center justify-center min-h-11 px-3 rounded border border-slate-300 dark:border-zinc-700 text-xs font-medium text-slate-700 dark:text-zinc-200 hover:border-[#310CB5] hover:text-[#310CB5] dark:hover:border-indigo-400 dark:hover:text-indigo-400 transition">Добавить PDF или TXT</button>
+                <button type="button" id="onboardingUploadBtn" onclick="document.getElementById('fileInput').click()" class="hidden mt-2.5 inline-flex items-center justify-center min-h-11 px-3 rounded border border-slate-300 dark:border-zinc-700 text-xs font-medium text-slate-700 dark:text-zinc-200 hover:border-[#0C36CD] hover:text-[#0C36CD] dark:hover:border-indigo-400 dark:hover:text-indigo-400 transition">Добавить PDF или TXT</button>
               </div>
               <p class="mt-3 text-xs text-slate-600 dark:text-zinc-300">Если ответа в материалах нет, justask скажет об этом прямо.</p>
             </div>
@@ -155,7 +171,7 @@
 
     <div class="p-4 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shrink-0">
       <div class="max-w-2xl mx-auto">
-        <form id="chatForm" class="relative bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 focus-within:border-[#310CB5] rounded-lg p-2 transition">
+        <form id="chatForm" class="relative bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 focus-within:border-[#0C36CD] rounded-lg p-2 transition">
           <label for="userInput" class="sr-only">Ваш вопрос по материалам курса</label>
           <textarea id="userInput" rows="1" maxlength="4000" aria-describedby="composerHint" placeholder="Задайте вопрос по материалам курса (Enter для отправки)..." 
                     class="w-full bg-transparent px-2 min-h-11 py-2.5 text-sm text-slate-900 dark:text-zinc-100 placeholder-slate-600 dark:placeholder-zinc-400 resize-none max-h-32 custom-scroll"></textarea>
@@ -166,7 +182,7 @@
                 Остановить
               </button>
               <button type="submit" id="sendBtn" 
-                      class="inline-flex items-center justify-center min-h-11 px-3.5 bg-[#310CB5] hover:bg-[#270894] text-white rounded text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed gap-1.5">
+                      class="inline-flex items-center justify-center min-h-11 px-3.5 bg-[#0C36CD] hover:bg-[#0A005A] text-white rounded text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed gap-1.5">
                 <span id="sendBtnText">Спросить</span>
               </button>
             </div>
@@ -298,16 +314,21 @@
     window.addEventListener('resize', () => setSidebarOpen(window.innerWidth >= 1024));
     setSidebarOpen(window.innerWidth >= 1024);
 
-    marked.setOptions({
-      highlight: function(code, lang) {
-        if (lang && hljs.getLanguage(lang)) {
-          return hljs.highlight(code, { language: lang }).value;
+    if (typeof marked !== "undefined" && typeof hljs !== "undefined") {
+      marked.setOptions({
+        highlight: function(code, lang) {
+          if (lang && hljs.getLanguage(lang)) {
+            return hljs.highlight(code, { language: lang }).value;
+          }
+          return hljs.highlightAuto(code).value;
         }
-        return hljs.highlightAuto(code).value;
-      }
-    });
+      });
+    }
 
     function renderSafeMarkdown(text) {
+      if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
+        return escapeHtml(text).replace(/\n/g, "<br>");
+      }
       return DOMPurify.sanitize(marked.parse(text));
     }
 
@@ -340,7 +361,7 @@
           <div class="rounded border border-dashed border-slate-300 dark:border-zinc-700 p-3 text-xs">
             <div class="font-semibold text-slate-700 dark:text-zinc-200">Материалы ещё не загружены</div>
             <p class="mt-1 text-slate-600 dark:text-zinc-300 leading-relaxed">${message}</p>
-            ${canManageDocuments ? '<button type="button" data-empty-upload class="mt-2 inline-flex items-center gap-1.5 font-medium text-[#310CB5] dark:text-indigo-400 hover:underline">Добавить PDF или TXT</button>' : ''}
+            ${canManageDocuments ? '<button type="button" data-empty-upload class="mt-2 inline-flex items-center gap-1.5 font-medium text-[#0C36CD] dark:text-indigo-400 hover:underline">Добавить PDF или TXT</button>' : ''}
           </div>`;
         return;
       }
@@ -509,7 +530,7 @@
         });
         if (!res.ok) throw new Error(await readError(res));
         const feedback = btn.parentElement;
-        feedback.innerHTML = '<span class="text-[#310CB5] dark:text-indigo-400 font-medium text-[11px]">Спасибо за отзыв!</span>';
+        feedback.innerHTML = '<span class="text-[#0C36CD] dark:text-indigo-400 font-medium text-[11px]">Спасибо за отзыв!</span>';
         feedback.tabIndex = -1;
         feedback.focus({ preventScroll: true });
         setSrStatus("Спасибо за отзыв.");
@@ -531,7 +552,7 @@
     const ONBOARDING_KEY = "justask_onboarding_dismissed";
     const simpleGreetingHtml = `
       <div class="flex gap-3">
-        <div class="w-6 h-6 rounded bg-[#310CB5] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5" aria-hidden="true">?</div>
+        <div class="w-6 h-6 rounded bg-[#0C36CD] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5" aria-hidden="true">?</div>
         <div class="text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-3.5 rounded-lg text-slate-700 dark:text-zinc-300 leading-relaxed shadow-sm">
           Привет! Я ассистент курса <b>justask</b>. Задайте вопрос по материалам — ответ придёт с цитатой из источника.
         </div>
@@ -632,7 +653,7 @@
 
       messages.insertAdjacentHTML("beforeend", `
         <div class="flex justify-end">
-          <div class="bg-[#310CB5] text-white text-sm py-2 px-3.5 rounded-lg max-w-xl leading-relaxed shadow-sm break-words">${escapeHtml(q)}</div>
+          <div class="bg-[#0C36CD] text-white text-sm py-2 px-3.5 rounded-lg max-w-xl leading-relaxed shadow-sm break-words">${escapeHtml(q)}</div>
         </div>`);
 
       const msgId = "ai_" + Date.now();
@@ -640,7 +661,7 @@
       msgEl.className = "flex gap-3 ai-card";
       msgEl.setAttribute("data-q", q);
       msgEl.innerHTML = `
-        <div class="w-6 h-6 rounded bg-[#310CB5] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5" aria-hidden="true">?</div>
+        <div class="w-6 h-6 rounded bg-[#0C36CD] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5" aria-hidden="true">?</div>
         <div class="flex-1 space-y-2 max-w-xl">
           <div id="${msgId}_box" class="text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-3.5 rounded-lg text-slate-800 dark:text-zinc-200 leading-relaxed shadow-sm">
             <div id="${msgId}_thinking" class="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 py-1">
@@ -655,12 +676,12 @@
                 <span>·</span>
                 <div id="${msgId}_feedback" class="flex items-center gap-1.5">
                   <span>Полезно?</span>
-                  <button type="button" onclick="rateAnswer(this, true)" class="inline-flex items-center min-h-11 px-2 hover:text-[#310CB5] dark:hover:text-indigo-400 transition">Да</button>
+                  <button type="button" onclick="rateAnswer(this, true)" class="inline-flex items-center min-h-11 px-2 hover:text-[#0C36CD] dark:hover:text-indigo-400 transition">Да</button>
                   <span>/</span>
                   <button type="button" onclick="rateAnswer(this, false)" class="inline-flex items-center min-h-11 px-2 hover:text-red-500 transition">Нет</button>
                 </div>
               </div>
-              <span id="${msgId}_status" class="mono text-[11px] text-[#310CB5] dark:text-indigo-400 font-semibold">Завершено</span>
+              <span id="${msgId}_status" class="mono text-[11px] text-[#0C36CD] dark:text-indigo-400 font-semibold">Завершено</span>
             </div>
           </div>
         </div>`;
@@ -713,7 +734,7 @@
                 sourcesContainer.innerHTML = '<span class="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block mb-1">Источники цитат:</span>' +
                   payload.sources.map((s) => `
                     <details class="group border border-slate-200 dark:border-zinc-800 rounded bg-slate-50/50 dark:bg-zinc-800/40 text-xs transition">
-                      <summary class="cursor-pointer min-h-11 py-2.5 px-2.5 flex items-center justify-between text-slate-700 dark:text-zinc-300 hover:text-[#310CB5] dark:hover:text-indigo-400 font-medium select-none">
+                      <summary class="cursor-pointer min-h-11 py-2.5 px-2.5 flex items-center justify-between text-slate-700 dark:text-zinc-300 hover:text-[#0C36CD] dark:hover:text-indigo-400 font-medium select-none">
                         <span class="flex items-center gap-1.5 min-w-0">
                           <svg aria-hidden="true" class="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400 shrink-0 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                           <span class="truncate">${escapeHtml(s.document)} · Стр. ${escapeHtml(s.page)}</span>
