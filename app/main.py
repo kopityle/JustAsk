@@ -1,5 +1,6 @@
 ﻿import asyncio
 import os
+from pathlib import Path
 
 import httpx
 from fastapi import FastAPI
@@ -87,4 +88,5 @@ def startup():
     except Exception as e:
         print(f"[AI-TUTOR] Не удалось прогреть модель эмбеддингов: {e}")
 
-app.mount("/", StaticFiles(directory="app/static", html=True), name="static")
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

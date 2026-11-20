@@ -1,8 +1,16 @@
+from pathlib import Path
 from unittest.mock import patch
 
 import httpx
 
 from app.core.config import settings
+from app.main import STATIC_DIR
+
+
+def test_static_dir_is_absolute():
+    """Приложение должно запускаться из любого каталога, а не только из корня проекта."""
+    assert Path(STATIC_DIR).is_absolute()
+    assert (STATIC_DIR / "index.html").is_file()
 
 
 class FakeOllamaClient:
