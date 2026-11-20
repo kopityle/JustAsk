@@ -1,140 +1,127 @@
 @echo off
 chcp 65001 >nul
 title JustAsk AI Tutor
-
-REM === Golden config for 8GB RAM (must be set BEFORE ollama starts) ===
-set OLLAMA_NUM_PARALLEL=2
-set OLLAMA_MAX_LOADED_MODELS=1
-set OLLAMA_KEEP_ALIVE=60m
-REM Сервер слушает 0.0.0.0: гостевые записи принудительно выключены.
-set ALLOW_GUEST_WRITES=false
+cd /d "%~dp0"
 
 echo ============================================================
-echo  [1/5] Проверяем Python...
+echo   JustAsk AI Tutor - bootstrap and start (Windows)
 echo ============================================================
-where python >nul 2>nul
+
+REM === Golden config for 8 GB RAM: set BEFORE ollama starts ===
+set "OLLAMA_NUM_PARALLEL=2"
+set "OLLAMA_MAX_LOADED_MODELS=1"
+set "OLLAMA_KEEP_ALIVE=60m"
+
+REM === 1. Ollama: explicit locations + PATH lookup ===
+set "PATH=%LOCALAPPDATA%\Programs\Ollama;%ProgramFiles%\Ollama;%PATH%"
+where ollama >nul 2>&1
 if errorlevel 1 (
-    echo.
-    echo  [!] Установите Python 3.10+ с галочкой "Add to PATH"
-    echo  Открываю python.org...
-    start https://www.python.org/downloads/
+    echo [!] Ollama не найдена в PATH и по стандартным путям.
+    echo     Скачайте и установите: https://ollama.com/download/windows
+    echo     После установки откройте НОВОЕ окно терминала и запустите скрипт снова.
+    pause
+    exit /b 1
+)
+echo [OK] Ollama найдена.
+
+REM === 2. Python ===
+where python >nul 2>&1
+if errorlevel 1 (
+    echo [!] Python не найден. Установите Python 3.10+ с галочкой "Add python.exe to PATH":
+    echo     https://www.python.org/downloads/
     pause
     exit /b 1
 )
 echo [OK] Python найден.
 
-REM === Проверяем наличие .env с секретами ===
-if not exist ".env" (
-    echo.
-    echo  [!] Файл .env не найден!
-    echo  Скопируйте .env.example в .env и заполните LTI_CONSUMER_KEY, LTI_SHARED_SECRET, JWT_SECRET.
-    pause
-    exit /b 1
+REM === 3. venv: if unavailable, continue with system Python ===
+python -c "import venv" >nul 2>&1
+if errorlevel 1 (
+    echo [*] Модуль venv не найден, используется системный Python.
+    goto :deps
 )
-echo [OK] Файл .env найден.
-
-echo.
-echo ============================================================
-echo  [2/5] Проверяем Python-окружение...
-echo ============================================================
-if exist venv\Scripts\activate.bat (
-    call venv\Scripts\activate.bat
-    if not exist venv\.installed (
-        echo [*] Ставим зависимости - первый запуск, пару минут...
-        python -m pip install -r requirements.txt
-        if errorlevel 1 (
-            echo [!] Ошибка установки зависимостей.
-            pause
-            exit /b 1
-        )
-        type nul > venv\.installed
-    )
-    echo [OK] Использую venv.
-) else (
-    python -c "import fastapi, uvicorn, chromadb" >nul 2>nul
-    if not errorlevel 1 (
-        echo [OK] Зависимости уже в системном Python, venv не нужен.
-    ) else (
-        echo [*] Зависимостей нет. Пробую создать venv...
-        python -m venv venv 2>nul
-        if errorlevel 1 (
-            echo.
-            echo  [!] Установите зависимости вручную:
-            echo      python -m pip install -r requirements.txt
-            echo  (или установите полный Python 3.10+ с python.org
-            echo   с галочкой "Add to PATH" и снова запустите start.bat)
-            start https://www.python.org/downloads/
-            pause
-            exit /b 1
-        )
-        call venv\Scripts\activate.bat
-        python -m pip install -r requirements.txt
-        if errorlevel 1 (
-            echo [!] Ошибка установки зависимостей.
-            pause
-            exit /b 1
-        )
-        type nul > venv\.installed
+if not exist "venv\Scripts\activate.bat" (
+    echo [*] Creating virtual environment...
+    python -m venv venv
+    if errorlevel 1 (
+        echo [*] Не удалось создать venv, используется системный Python.
+        goto :deps
     )
 )
-echo [OK] Окружение готово.
-
-echo.
-echo ============================================================
-echo  [3/5] Проверяем Ollama...
-echo ============================================================
-where ollama >nul 2>nul
+call venv\Scripts\activate.bat
 if errorlevel 1 (
-    echo.
-    echo  [!] Не установлена Ollama. Скачайте её: https://ollama.com
-    echo  Открываю сайт...
-    start https://ollama.com
+    echo [*] Не удалось активировать venv, используется системный Python.
+    goto :deps
+)
+echo [OK] venv активировано.
+
+:deps
+python -c "import fastapi, uvicorn, chromadb, fastembed, pymorphy3, docx" >nul 2>&1
+if not errorlevel 1 (
+    echo [OK] Зависимости установлены.
+    goto :envcheck
+)
+echo [*] Не хватает зависимостей, ставлю из requirements.txt - первый запуск может занять пару минут...
+python -m pip install -r requirements.txt
+if errorlevel 1 (
+    echo [!] Не удалось установить зависимости. Проверьте интернет и права пользователя.
     pause
     exit /b 1
 )
-curl -s http://localhost:11434 >nul 2>nul
-if errorlevel 1 (
-    echo [*] Стартую Ollama в отдельном окне...
-    start "Ollama" cmd /k ollama serve
-) else (
-    echo [OK] Ollama уже работает.
-)
+echo [OK] Зависимости установлены.
 
-set /a TRIES=0
-:wait_ollama
-ollama list >nul 2>nul
-if not errorlevel 1 goto ollama_ok
-set /a TRIES+=1
-if %TRIES% geq 15 (
-    echo [!] Ollama не отвечает. Проверьте окно Ollama.
+:envcheck
+REM === 4. .env creates itself on first import of app.core.config ===
+echo [*] Проверяю конфигурацию...
+python -c "import app.core.config"
+if errorlevel 1 (
+    echo [!] Не удалось подготовить .env. Скопируйте .env.example в .env вручную.
     pause
     exit /b 1
 )
+
+REM === 5. Ollama service ===
+curl.exe -s --max-time 1 http://localhost:11434/api/tags >nul 2>&1
+if not errorlevel 1 goto :ollama_ready
+echo [*] Ollama не отвечает, запускаю демон в фоне...
+start "" ollama serve
+set /a OLLAMA_TRIES=0
+
+:ollama_wait
+curl.exe -s --max-time 1 http://localhost:11434/api/tags >nul 2>&1
+if not errorlevel 1 goto :ollama_ready
+set /a OLLAMA_TRIES+=1
+if %OLLAMA_TRIES% GEQ 30 goto :ollama_failed
 timeout /t 1 /nobreak >nul
-goto wait_ollama
-:ollama_ok
-echo [OK] Ollama отвечает.
+goto :ollama_wait
 
-echo.
-echo ============================================================
-echo  [4/5] Проверяем модель llama3.2:3b...
-echo ============================================================
-ollama list 2>nul | findstr /c:"llama3.2:3b" >nul
+:ollama_failed
+echo [!] Ollama не ответила за 30 секунд. Проверьте вручную: ollama serve
+pause
+exit /b 1
+
+:ollama_ready
+echo [OK] Ollama доступна на http://localhost:11434
+
+REM === 6. Answer model. No separate embedder needed: FastEmbed runs in Python ===
+ollama list | findstr /i /c:"llama3.2:3b" >nul 2>&1
 if errorlevel 1 (
-    echo [!] Модель llama3.2:3b не найдена. Начинаем загрузку ~2 ГБ...
+    echo [*] Скачиваю llama3.2:3b - это ~2 ГБ...
     ollama pull llama3.2:3b
     if errorlevel 1 (
-        echo [!] Ошибка загрузки модели.
+        echo [!] Не удалось скачать модель. Повторите вручную: ollama pull llama3.2:3b
         pause
         exit /b 1
     )
+    echo [OK] Модель загружена.
+) else (
+    echo [OK] Модель llama3.2:3b уже есть.
 )
-echo [OK] Модель на месте.
+echo [OK] Отдельный эмбеддер в Ollama качать НЕ нужно - FastEmbed работает в Python.
 
-echo.
-echo ============================================================
-echo  [5/5] Запуск JustAsk на http://localhost:8000
-echo ============================================================
-start http://localhost:8000
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+REM === 7. Start the server ===
+echo [*] Server: http://localhost:8000  ^|  health: http://localhost:8000/health
+echo [*] Для загрузки файлов без Moodle задайте ALLOW_GUEST_WRITES=true в .env
+start "" http://localhost:8000
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 pause
