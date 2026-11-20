@@ -118,7 +118,13 @@ async def upload_document(file: UploadFile = File(...), authorization: str = Hea
             await asyncio.to_thread(save_file, file, path)
             chunks = await asyncio.to_thread(load_and_chunk_file, path)
             if not chunks:
-                raise HTTPException(status_code=400, detail="В файле не найден текст для индексации")
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "В файле не найден текст для индексации. Если это скан, "
+                        "нужен PDF с текстовым слоем (после OCR) или файл TXT с распознанным текстом."
+                    ),
+                )
             await asyncio.to_thread(vector_store.delete_document, filename, course_id)
             await asyncio.to_thread(vector_store.add_chunks, chunks, course_id=course_id)
         except Exception:

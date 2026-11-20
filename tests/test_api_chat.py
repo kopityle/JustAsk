@@ -44,6 +44,28 @@ def test_chat_normalizes_course_id_from_token(client):
         course_id=safe_course_id(raw_course_id),
     )
 
+
+def test_expand_query_runs_under_inference_semaphore(client, monkeypatch):
+    semaphore = asyncio.BoundedSemaphore(1)
+    monkeypatch.setattr("app.api.chat.inference_semaphore", semaphore)
+    locked_during_expand = []
+
+    async def watched_expand(query):
+        locked_during_expand.append(semaphore.locked())
+        return ["первая нормальная форма"]
+
+    found = [_chunk("1nf.pdf", 1, "первая нормальная форма")]
+    with patch("app.api.chat.vector_store.search", side_effect=[[], found]), \
+         patch("app.api.chat.expand_query", new=watched_expand), \
+         patch("app.api.chat.stream_rag_answer", side_effect=_two_tokens):
+        response = client.post("/api/chat/stream", json={"question": "Что такое 1НФ?"})
+
+    assert response.status_code == 200
+    assert locked_during_expand == [True]  # вызов LLM идёт с занятым слотом
+    assert not semaphore.locked()  # после expansion и стрима слоты освобождены
+    assert _token_events(_events(response.text)) == ["Короткий ", "ответ"]
+
+
 @patch("app.api.chat.vector_store.search")
 def test_chat_fast_fail_offtopic(mock_search, client):
     # Если векторный поиск не нашел чанков с дистанцией <= 0.65

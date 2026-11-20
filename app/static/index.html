@@ -444,9 +444,11 @@
     async function deleteDoc(filename) {
       if (!canManageDocuments) return;
       if (!confirm(`Удалить «${filename}»? Материал исчезнет из поиска по курсу.`)) return;
+      let sessionExpired = false;
       try {
         const res = await fetch(`/api/documents/${encodeURIComponent(filename)}`, { method: "DELETE", headers: getAuthHeaders() });
         if (res.status === 401) {
+          sessionExpired = true;
           handleSessionExpired(await readError(res));
           return;
         }
@@ -458,7 +460,8 @@
         setDocsStatus(`Не удалось удалить: ${err.message}`, 'error');
         setSrStatus(`Не удалось удалить материал: ${err.message}`);
       } finally {
-        loadDocuments();
+        // После 401 токен уже сброшен: гостевой запрос затрёт сообщение об истёкшей сессии.
+        if (!sessionExpired) loadDocuments();
       }
     }
 
@@ -500,6 +503,7 @@
       const form = new FormData();
       form.append("file", file);
 
+      let sessionExpired = false;
       try {
         const res = await fetch("/api/documents/upload", {
           method: "POST",
@@ -507,6 +511,7 @@
           body: form
         });
         if (res.status === 401) {
+          sessionExpired = true;
           handleSessionExpired(await readError(res));
           return;
         }
@@ -521,7 +526,8 @@
         uploadBtn.disabled = false;
         uploadText.innerText = "Добавить материал";
         e.target.value = "";
-        loadDocuments();
+        // После 401 токен уже сброшен: гостевой запрос затрёт сообщение об истёкшей сессии.
+        if (!sessionExpired) loadDocuments();
       }
     });
 

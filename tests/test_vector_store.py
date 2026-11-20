@@ -122,3 +122,32 @@ def test_bm25_cache_evicts_least_recently_used_course(tmp_path, monkeypatch):
     assert "course_0" in store._bm25_cache
     assert "course_20" in store._bm25_cache
     assert list(store._bm25_cache)[-1] == "course_20"
+
+
+def test_document_stats_reads_only_metadata(tmp_path, monkeypatch):
+    store = _make_store(
+        tmp_path,
+        monkeypatch,
+        lambda texts: [[1.0, 0.0, 0.0, 0.0] for _ in texts],
+    )
+    original_get = store.collection.get
+
+    def tracking_get(*args, **kwargs):
+        assert kwargs["include"] == ["metadatas"]
+        result = original_get(*args, **kwargs)
+        assert not result.get("documents")
+        return result
+
+    monkeypatch.setattr(store.collection, "get", tracking_get)
+    store.add_chunks(
+        [
+            {"document": "a.pdf", "page": 1, "text": "первый"},
+            {"document": "a.pdf", "page": 1, "text": "второй"},
+            {"document": "a.pdf", "page": 2, "text": "третий"},
+        ],
+        course_id="course_a",
+    )
+
+    stats = store.get_document_stats(course_id="course_a")
+
+    assert stats == [{"filename": "a.pdf", "chunks": 3, "pages": 2}]

@@ -6,7 +6,8 @@ REM === Golden config for 8GB RAM (must be set BEFORE ollama starts) ===
 set OLLAMA_NUM_PARALLEL=2
 set OLLAMA_MAX_LOADED_MODELS=1
 set OLLAMA_KEEP_ALIVE=60m
-set ALLOW_GUEST_WRITES=true
+REM Сервер слушает 0.0.0.0: гостевые записи принудительно выключены.
+set ALLOW_GUEST_WRITES=false
 
 echo ============================================================
 echo  [1/5] Проверяем Python...
@@ -21,6 +22,16 @@ if errorlevel 1 (
     exit /b 1
 )
 echo [OK] Python найден.
+
+REM === Проверяем наличие .env с секретами ===
+if not exist ".env" (
+    echo.
+    echo  [!] Файл .env не найден!
+    echo  Скопируйте .env.example в .env и заполните LTI_CONSUMER_KEY, LTI_SHARED_SECRET, JWT_SECRET.
+    pause
+    exit /b 1
+)
+echo [OK] Файл .env найден.
 
 echo.
 echo ============================================================

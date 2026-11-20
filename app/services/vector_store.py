@@ -258,25 +258,27 @@ class VectorStore:
             return []
         
         course_key = course_id or "default_course"
+        # Статистике нужны только метаданные: тексты всех чанков курса
+        # занимают десятки МБ и на каждом GET /api/documents читать их не нужно.
         data = self.collection.get(
             where={"course_id": course_key},
-            include=["documents", "metadatas"],
+            include=["metadatas"],
         )
 
         docs_map = {}
         seen_chunks = set()
-        for document, meta in zip(
-            data.get("documents") or [],
+        for chunk_id, meta in zip(
+            data.get("ids") or [],
             data.get("metadatas") or [],
         ):
             if not meta:
                 continue
             name = meta.get("document", "unknown")
             page = meta.get("page", 1)
-            key = (name, page, document)
-            if key in seen_chunks:
+            # Идентификатор чанка уникален, текст для дедупликации больше не нужен.
+            if chunk_id in seen_chunks:
                 continue
-            seen_chunks.add(key)
+            seen_chunks.add(chunk_id)
             if name not in docs_map:
                 docs_map[name] = {"chunks": 0, "max_page": 1}
             docs_map[name]["chunks"] += 1

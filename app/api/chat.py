@@ -72,12 +72,23 @@ async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization
         chunks = await asyncio.to_thread(vector_store.search, clean_search_query, top_k=4, course_id=course_id)
 
         # Тяжёлое расширение — только если первый поиск вернул 0 результатов
-        # и в вопросе есть аббревиатура (например, 1НФ).
+        # и в вопросе есть аббревиатура (например, 1НФ). Это тоже вызов Ollama,
+        # поэтому он идёт под тем же семафором, что и поток ответа.
         if should_expand_query(clean_search_query, chunks):
+            expanded_queries = []
             try:
-                expanded_queries = await asyncio.wait_for(expand_query(clean_search_query), timeout=15.0)
+                await asyncio.wait_for(inference_semaphore.acquire(), timeout=40.0)
             except asyncio.TimeoutError:
-                expanded_queries = []
+                pass  # перегружены: отвечаем по результатам первого поиска
+            else:
+                try:
+                    expanded_queries = await asyncio.wait_for(
+                        expand_query(clean_search_query), timeout=15.0
+                    )
+                except asyncio.TimeoutError:
+                    expanded_queries = []
+                finally:
+                    inference_semaphore.release()
 
             expanded_chunks = []
             for expanded_query in expanded_queries:

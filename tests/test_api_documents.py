@@ -231,7 +231,9 @@ def test_upload_empty_file_returns_400_and_removes_temp_file(client, tmp_path, t
     response = _upload_bytes(client, "empty.pdf", teacher_headers)
 
     assert response.status_code == 400
-    assert "не найден текст" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert "не найден текст" in detail
+    assert "OCR" in detail
     assert not (tmp_path / "test_course" / "empty.pdf").exists()
     assert added == []
     assert deleted == [("empty.pdf", "test_course")]

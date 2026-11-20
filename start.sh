@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+if [ ! -f ".env" ]; then
+    echo "[!] Файл .env не найден."
+    echo "    Скопируйте .env.example в .env и заполните LTI_CONSUMER_KEY, LTI_SHARED_SECRET, JWT_SECRET."
+    exit 1
+fi
+
 echo "==================================================="
 echo "🚀 [1/4] Настройка и запуск Ollama для многопоточности..."
 echo "==================================================="
