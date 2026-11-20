@@ -88,6 +88,8 @@ def test_lti_launch_with_valid_oauth_signature_issues_jwt(client):
     assert location.startswith("/?token=")
     token = parse_qs(urlparse(location).query)["token"][0]
     payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+    now = int(time.time())
+    assert now + 86400 - 5 <= payload["exp"] <= now + 86400 + 5
     assert payload["role"] == "teacher"
     assert payload["course_id"] == "course_test_link_1"
     assert payload["name"] == "Иван Преподаватель"

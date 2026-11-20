@@ -130,7 +130,12 @@ async def lti_launch(request: Request):
 
     # Выпускаем JWT токен сессии
     token = jwt.encode(
-        {"name": name, "role": role, "course_id": course_id},
+        {
+            "name": name,
+            "role": role,
+            "course_id": course_id,
+            "exp": int(time.time()) + 86400,
+        },
         settings.JWT_SECRET,
         algorithm="HS256",
     )

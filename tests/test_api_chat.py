@@ -4,14 +4,45 @@ import os
 from unittest.mock import AsyncMock, patch
 
 import httpx
+import jwt
 import pytest
 from fastapi import Request
 
 from app.api.chat import dedupe_chunks
+from app.api.documents import safe_course_id
+from app.core.config import settings
 
 def test_chat_stream_empty_question(client):
     response = client.post("/api/chat/stream", json={"question": "   "})
     assert response.status_code == 400
+
+
+def test_chat_rejects_question_longer_than_4000(client):
+    response = client.post("/api/chat/stream", json={"question": "x" * 4001})
+    assert response.status_code == 422
+
+
+def test_chat_normalizes_course_id_from_token(client):
+    raw_course_id = "../Other Course/1"
+    token = jwt.encode(
+        {"role": "student", "course_id": raw_course_id, "name": "Студент"},
+        settings.JWT_SECRET,
+        algorithm="HS256",
+    )
+
+    with patch("app.api.chat.vector_store.search", return_value=[]) as mock_search:
+        response = client.post(
+            "/api/chat/stream",
+            json={"question": "Что такое база данных?"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 200
+    mock_search.assert_called_once_with(
+        "Что такое база данных?",
+        top_k=4,
+        course_id=safe_course_id(raw_course_id),
+    )
 
 @patch("app.api.chat.vector_store.search")
 def test_chat_fast_fail_offtopic(mock_search, client):

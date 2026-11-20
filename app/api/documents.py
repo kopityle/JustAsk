@@ -105,40 +105,48 @@ async def upload_document(file: UploadFile = File(...), authorization: str = Hea
     os.makedirs(course_dir, exist_ok=True)
     path = os.path.join(course_dir, filename)
 
-    if os.path.exists(path):
-        raise HTTPException(
-            status_code=409,
-            detail="Файл с таким именем уже загружен. Удалите его перед повторной загрузкой.",
-        )
+    async with upload_semaphore:
+        # Проверка внутри семафора: иначе два параллельных запроса могут
+        # одновременно решить, что файла ещё нет, и перезаписать друг друга.
+        if os.path.exists(path):
+            raise HTTPException(
+                status_code=409,
+                detail="Файл с таким именем уже загружен. Удалите его перед повторной загрузкой.",
+            )
 
-    try:
-        async with upload_semaphore:
+        try:
             await asyncio.to_thread(save_file, file, path)
             chunks = await asyncio.to_thread(load_and_chunk_file, path)
             if not chunks:
                 raise HTTPException(status_code=400, detail="В файле не найден текст для индексации")
             await asyncio.to_thread(vector_store.delete_document, filename, course_id)
             await asyncio.to_thread(vector_store.add_chunks, chunks, course_id=course_id)
-    except Exception:
-        await asyncio.to_thread(vector_store.delete_document, filename, course_id)
-        if os.path.exists(path):
-            os.remove(path)
-        raise
+        except Exception:
+            await asyncio.to_thread(vector_store.delete_document, filename, course_id)
+            if os.path.exists(path):
+                os.remove(path)
+            raise
 
     return {"status": "ok", "filename": filename, "indexed_chunks": len(chunks)}
 
 
 @router.delete("/{filename}")
-def delete_document(filename: str, authorization: str = Header(None)):
+async def delete_document(filename: str, authorization: str = Header(None)):
     session = get_session_context(authorization)
     require_manage_permission(session, "Удаление доступно только преподавателю")
 
     filename = validate_filename(filename)
     course_id = safe_course_id(session.get("course_id"))
-    removed_chunks = vector_store.delete_document(filename, course_id=course_id)
     file_path = os.path.join(settings.DOCS_DIR, course_id, filename)
-    if os.path.exists(file_path):
-        os.remove(file_path)
-    elif removed_chunks == 0:
-        raise HTTPException(status_code=404, detail="Файл не найден")
+
+    # Не удаляем файл, пока другая загрузка индексирует этот курс.
+    async with upload_semaphore:
+        removed_chunks = await asyncio.to_thread(
+            vector_store.delete_document, filename, course_id=course_id
+        )
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        elif removed_chunks == 0:
+            raise HTTPException(status_code=404, detail="Файл не найден")
+
     return {"status": "deleted", "filename": filename, "removed_chunks": removed_chunks}

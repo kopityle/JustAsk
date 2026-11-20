@@ -197,7 +197,10 @@
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     let token = urlParams.get('token') || sessionStorage.getItem('justask_jwt');
-    if (urlParams.get('token')) sessionStorage.setItem('justask_jwt', token);
+    if (urlParams.get('token')) {
+      sessionStorage.setItem('justask_jwt', token);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
 
     const getAuthHeaders = () => token ? { "Authorization": "Bearer " + token } : {};
     const $ = (id) => document.getElementById(id);
@@ -607,7 +610,7 @@
       if (activeController) activeController.abort();
     });
 
-    function showAnswerError(msgId, message, question) {
+    function showAnswerError(msgId, message, question, printedAnswer = "") {
       const msgEl = $(`${msgId}_box`)?.closest(".ai-card");
       if (!msgEl) return;
       const thinking = $(`${msgId}_thinking`);
@@ -616,8 +619,11 @@
       if (thinking) thinking.classList.add("hidden");
       if (text) {
         text.classList.remove("hidden");
-        text.innerHTML = `<div class="text-xs text-red-600 dark:text-red-400" role="alert">${escapeHtml(message)}</div>
+        const errorBlock = `<div class="text-xs text-red-600 dark:text-red-400" role="alert">${escapeHtml(message)}</div>
           <button type="button" data-retry-question="${escapeHtml(question)}" class="mt-2 px-3 py-1.5 border border-slate-300 dark:border-zinc-700 rounded text-xs font-medium text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">Повторить</button>`;
+        text.innerHTML = printedAnswer
+          ? `${renderSafeMarkdown(printedAnswer)}<div class="mt-3 pt-2 border-t border-slate-200 dark:border-zinc-800">${errorBlock}</div>`
+          : errorBlock;
       }
       if (actions) actions.classList.add("hidden");
       setSrStatus(message);
@@ -713,15 +719,23 @@
         let isFirstToken = true;
         let buffer = "";
 
+        const finalizeAnswer = () => {
+          const notFoundByText = /ответ на этот вопрос не найден/i.test(rawAnswer);
+          actionsContainer.classList.remove("hidden");
+          setAnswerStatus(msgId, hasSources, notFoundByText ? false : isFound);
+          return notFoundByText;
+        };
+
         const handleEvent = (eventBlock) => {
           const dataLine = eventBlock.split("\n").find((line) => line.startsWith("data: "));
           if (!dataLine) return;
           const payloadStr = dataLine.slice(6).trim();
           if (!payloadStr) return;
           if (payloadStr === "[DONE]") {
-            actionsContainer.classList.remove("hidden");
-            setAnswerStatus(msgId, hasSources, isFound);
-            setSrStatus(hasSources ? "Ответ получен. Источники доступны в карточке." : "Ответ получен без источников.");
+            const notFoundByText = finalizeAnswer();
+            setSrStatus(notFoundByText
+              ? "Ответ не найден в материалах курса."
+              : hasSources ? "Ответ получен. Источники доступны в карточке." : "Ответ получен без источников.");
             return;
           }
           try {
@@ -762,17 +776,14 @@
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          buffer += decoder.decode(value, { stream: true });
+          buffer = (buffer + decoder.decode(value, { stream: true })).replace(/\r\n/g, "\n");
           const events = buffer.split("\n\n");
           buffer = events.pop() || "";
           for (const eventBlock of events) handleEvent(eventBlock);
         }
-        buffer += decoder.decode();
+        buffer = (buffer + decoder.decode()).replace(/\r\n/g, "\n");
         if (buffer.trim()) handleEvent(buffer);
-        if (actionsContainer.classList.contains("hidden")) {
-          actionsContainer.classList.remove("hidden");
-          setAnswerStatus(msgId, hasSources, isFound);
-        }
+        finalizeAnswer();
       } catch (err) {
         if (err.name === "AbortError") {
           if (!msgEl.isConnected) return;
@@ -795,7 +806,7 @@
           setSrStatus("Генерация остановлена.");
         } else {
           if (!msgEl.isConnected) return;
-          showAnswerError(msgId, `Не удалось получить ответ: ${err.message}`, q);
+          showAnswerError(msgId, `Не удалось получить ответ: ${err.message}`, q, rawAnswer);
         }
       } finally {
         if (activeController === controller) {

@@ -47,8 +47,11 @@ async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization
     if not raw_question:
         raise HTTPException(status_code=400, detail="Вопрос пуст")
 
+    # Локальный импорт: app.api.documents импортирует get_session_context из этого модуля.
+    from app.api.documents import safe_course_id
+
     session = get_session_context(authorization)
-    course_id = session.get("course_id", "default_course")
+    course_id = safe_course_id(session.get("course_id"))
 
     clean_search_query = GREETING_REGEX.sub('', raw_question).strip()
     is_pure_greeting = len(clean_search_query) < 2
