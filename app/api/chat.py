@@ -77,7 +77,9 @@ async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization
         if should_expand_query(clean_search_query, chunks):
             expanded_queries = []
             try:
-                await asyncio.wait_for(inference_semaphore.acquire(), timeout=40.0)
+                # Короткое ожидание: при занятой Ollama лучше сразу fast-fail,
+                # чем держать аббревиатурный вопрос ещё 40 секунд.
+                await asyncio.wait_for(inference_semaphore.acquire(), timeout=5.0)
             except asyncio.TimeoutError:
                 pass  # перегружены: отвечаем по результатам первого поиска
             else:

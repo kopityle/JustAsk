@@ -1,4 +1,7 @@
-﻿import os
+﻿import asyncio
+import os
+
+import httpx
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -37,6 +40,44 @@ async def limit_upload_request_size(request, call_next):
 app.include_router(chat_router)
 app.include_router(doc_router)
 app.include_router(lti_router)
+
+
+@app.get("/health")
+async def health():
+    """Быстрая проверка зависимостей для systemd и Nginx."""
+    chunks = None
+    chroma_error = None
+    try:
+        chunks = await asyncio.to_thread(vector_store.count)
+    except Exception as exc:
+        chroma_error = f"ChromaDB недоступна: {exc}"
+
+    ollama_status = "unavailable"
+    ollama_error = None
+    ollama_url = f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/tags"
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as ollama_client:
+            ollama_response = await ollama_client.get(ollama_url)
+            if ollama_response.status_code != 200:
+                raise RuntimeError(f"HTTP {ollama_response.status_code}")
+        ollama_status = "ok"
+    except Exception as exc:
+        ollama_error = f"Ollama недоступна: {exc}"
+
+    errors = [error for error in (chroma_error, ollama_error) if error]
+    if errors:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "degraded",
+                "chunks": chunks,
+                "ollama": ollama_status,
+                "errors": errors,
+            },
+        )
+
+    return {"status": "ok", "chunks": chunks, "ollama": ollama_status}
+
 
 @app.on_event("startup")
 def startup():

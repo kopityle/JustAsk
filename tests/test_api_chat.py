@@ -45,6 +45,60 @@ def test_chat_normalizes_course_id_from_token(client):
     )
 
 
+def test_expand_query_semaphore_wait_is_capped_at_five_seconds(client, monkeypatch):
+    # Подменяем asyncio только внутри app.api.chat, чтобы не влиять на TestClient.
+    class AsyncioSpy:
+        def __init__(self, real):
+            self._real = real
+            self.timeouts = []
+
+        def __getattr__(self, name):
+            if name != "wait_for":
+                return getattr(self._real, name)
+
+            async def wait_for(awaitable, timeout=None):
+                self.timeouts.append(timeout)
+                return await self._real.wait_for(awaitable, timeout)
+
+            return wait_for
+
+    spy = AsyncioSpy(asyncio)
+    monkeypatch.setattr("app.api.chat.asyncio", spy)
+
+    found = [_chunk("1nf.pdf", 1, "первая нормальная форма")]
+    with patch("app.api.chat.vector_store.search", side_effect=[[], found]), \
+         patch("app.api.chat.expand_query", new=AsyncMock(return_value=["первая нормальная форма"])), \
+         patch("app.api.chat.stream_rag_answer", side_effect=_two_tokens):
+        response = client.post("/api/chat/stream", json={"question": "Что такое 1НФ?"})
+
+    assert response.status_code == 200
+    assert spy.timeouts[:2] == [5.0, 15.0]  # acquire расширения, затем сам вызов LLM
+
+
+def test_expand_query_skipped_when_semaphore_busy(client, monkeypatch):
+    class BusySemaphore:
+        async def acquire(self):
+            raise asyncio.TimeoutError
+
+        def release(self):
+            raise AssertionError("release не должен вызываться без acquire")
+
+    monkeypatch.setattr("app.api.chat.inference_semaphore", BusySemaphore())
+
+    with patch("app.api.chat.vector_store.search", return_value=[]) as mock_search, \
+         patch("app.api.chat.expand_query", new=AsyncMock()) as mock_expand, \
+         patch("app.api.chat.stream_rag_answer") as mock_stream:
+        response = client.post("/api/chat/stream", json={"question": "Что такое 1НФ?"})
+
+    events = _events(response.text)
+    assert response.status_code == 200
+    assert mock_search.call_count == 1
+    mock_expand.assert_not_awaited()
+    mock_stream.assert_not_called()
+    assert events[0]["is_found"] is False
+    assert events[-1] == "[DONE]"
+
+
 def test_expand_query_runs_under_inference_semaphore(client, monkeypatch):
     semaphore = asyncio.BoundedSemaphore(1)
     monkeypatch.setattr("app.api.chat.inference_semaphore", semaphore)
