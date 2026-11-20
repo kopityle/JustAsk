@@ -1,5 +1,5 @@
 ﻿import os, threading, hashlib
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import chromadb
 from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
 from fastembed import TextEmbedding
@@ -48,7 +48,8 @@ class VectorStore:
         )
 
         self._rrf_k = 60
-        self._bm25_cache: Dict[str, BM25Index] = {}
+        self._bm25_max_courses = 20
+        self._bm25_cache: "OrderedDict[str, BM25Index]" = OrderedDict()
         self._bm25_lock = threading.Lock()
 
     def reset_collection(self) -> None:
@@ -72,15 +73,13 @@ class VectorStore:
         with self._bm25_lock:
             cached = self._bm25_cache.get(course_key)
             if cached is not None:
+                self._bm25_cache.move_to_end(course_key)
                 return cached
 
-            if course_key != "default_course":
-                data = self.collection.get(
-                    where={"course_id": course_key},
-                    include=["documents", "metadatas"],
-                )
-            else:
-                data = self.collection.get(include=["documents", "metadatas"])
+            data = self.collection.get(
+                where={"course_id": course_key},
+                include=["documents", "metadatas"],
+            )
 
             documents = data.get("documents") or []
             metadatas = data.get("metadatas") or []
@@ -104,6 +103,9 @@ class VectorStore:
             index = BM25Index()
             index.build(unique_documents, unique_metadatas)
             self._bm25_cache[course_key] = index
+            self._bm25_cache.move_to_end(course_key)
+            while len(self._bm25_cache) > self._bm25_max_courses:
+                self._bm25_cache.popitem(last=False)
             return index
 
     def add_chunks(self, chunks: List[Dict], course_id: str = "default_course"):
@@ -138,10 +140,11 @@ class VectorStore:
         self._invalidate_bm25()
 
     def delete_document(self, filename: str, course_id: str = None) -> int:
-        where_filter = {"document": filename}
-        if course_id and course_id != "default_course":
-            where_filter = {"$and": [{"document": filename}, {"course_id": course_id}]}
-        
+        course_key = course_id or "default_course"
+        where_filter = {
+            "$and": [{"document": filename}, {"course_id": course_key}]
+        }
+
         data = self.collection.get(where=where_filter)
         ids_to_del = data.get("ids", [])
         if ids_to_del:
@@ -164,7 +167,7 @@ class VectorStore:
             return []
 
         course_key = course_id or "default_course"
-        where_filter = {"course_id": course_key} if course_key != "default_course" else None
+        where_filter = {"course_id": course_key}
         candidate_count = min(max(top_k * 4, 20), total)
 
         res = self.collection.query(
@@ -254,14 +257,11 @@ class VectorStore:
         if self.collection.count() == 0:
             return []
         
-        where_filter = {"course_id": course_id} if (course_id and course_id != "default_course") else None
-        if where_filter:
-            data = self.collection.get(
-                where=where_filter,
-                include=["documents", "metadatas"],
-            )
-        else:
-            data = self.collection.get(include=["documents", "metadatas"])
+        course_key = course_id or "default_course"
+        data = self.collection.get(
+            where={"course_id": course_key},
+            include=["documents", "metadatas"],
+        )
 
         docs_map = {}
         seen_chunks = set()

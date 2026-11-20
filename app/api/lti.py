@@ -1,4 +1,5 @@
 import os
+import re
 from urllib.parse import urlencode
 import jwt
 import time
@@ -72,6 +73,18 @@ def _role_from_lti(roles: str) -> str:
         return "teacher"
     return "student"
 
+
+_UNSAFE_COURSE_ID_CHARS = re.compile(r"[^A-Za-z0-9_-]")
+
+
+def _build_course_id(context_id: str, resource_link_id: str) -> str:
+    """Build a filesystem-safe course id from LTI context and resource link."""
+    context = (context_id or "").strip()
+    link = (resource_link_id or "").strip()
+    raw = f"{context}_{link}" if link and context else (link or context)
+    course_id = _UNSAFE_COURSE_ID_CHARS.sub("_", raw)
+    return course_id or "default_course"
+
 @router.post("/launch")
 async def lti_launch(request: Request):
     body = (await request.body()).decode("utf-8")
@@ -104,7 +117,10 @@ async def lti_launch(request: Request):
 
     # Извлекаем роль и данные пользователя
     role = _role_from_lti(form_dict.get("roles", ""))
-    course_id = form_dict.get("context_id") or "default_course"
+    course_id = _build_course_id(
+        form_dict.get("context_id"),
+        form_dict.get("resource_link_id"),
+    )
     name = form_dict.get("lis_person_name_full") or "Пользователь Moodle"
 
     # Выпускаем JWT токен сессии

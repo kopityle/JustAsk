@@ -1,5 +1,7 @@
 import pytest
+from app.core.config import settings
 from app.services.pdf_loader import clean_pdf_text, split_text_clean
+from app.services.vector_store import FastEmbedFunction, VectorStore
 from app.api.chat import GREETING_REGEX, get_session_context
 
 
@@ -39,3 +41,34 @@ def test_get_session_context_guest():
 def test_get_session_context_invalid_token():
     ctx = get_session_context("Bearer invalid.fake.token")
     assert ctx["role"] == "guest"
+
+
+def test_default_course_is_strictly_isolated(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "CHROMA_DIR", str(tmp_path / "chroma"))
+    monkeypatch.setattr(
+        FastEmbedFunction,
+        "__call__",
+        lambda self, input: [[1.0, 0.0] for _ in input],
+    )
+    store = VectorStore()
+    store.add_chunks(
+        [{"document": "other.pdf", "page": 1, "text": "секретные данные другого курса"}],
+        course_id="other_course",
+    )
+    store.add_chunks(
+        [{"document": "default.pdf", "page": 1, "text": "обычные данные курса"}],
+        course_id="default_course",
+    )
+
+    hits = store.search("секретные данные другого курса", top_k=4, course_id="default_course")
+    assert hits
+    assert all(hit["document"] == "default.pdf" for hit in hits)
+
+    stats = store.get_document_stats(course_id="default_course")
+    assert [item["filename"] for item in stats] == ["default.pdf"]
+
+    assert store.delete_document("other.pdf", course_id="default_course") == 0
+    remaining = store.collection.get(where={"course_id": "other_course"}, include=[])
+    assert len(remaining["ids"]) == 1
+
+    assert store.delete_document("other.pdf", course_id="other_course") == 1
