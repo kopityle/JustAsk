@@ -56,6 +56,44 @@
     details summary { list-style: none; }
     button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid #0C36CD; outline-offset: 2px; }
     .dark button:focus-visible, .dark a:focus-visible, .dark textarea:focus-visible, .dark summary:focus-visible { outline-color: #a5b4fc; }
+
+    /* Широкие Markdown-таблицы прокручиваются внутри карточки ответа. */
+    .msg-body .table-scroll {
+      overflow-x: auto;
+      max-width: 100%;
+      -webkit-overflow-scrolling: touch;
+    }
+    .msg-body table {
+      width: max-content;
+      min-width: 100%;
+      border-collapse: collapse;
+    }
+    .msg-body table th,
+    .msg-body table td {
+      overflow-wrap: break-word;
+    }
+
+    /* Длинные слова не разрывают карточку: ответ, цитата и имя файла. */
+    .msg-body,
+    .msg-body blockquote,
+    .source-quote {
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+    .doc-filename {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Программный фокус на ленте не должен рисовать чёрную рамку браузера. */
+    #messagesContainer:focus,
+    #messages:focus,
+    .ai-card:focus {
+      outline: none;
+    }
+
   @media (min-width: 1024px) {
       #sidebar.desktop-closed {
         margin-left: -18rem;
@@ -133,7 +171,7 @@
       </div>
     </header>
 
-    <div id="messagesContainer" tabindex="-1" aria-label="Диалог с ИИ-наставником" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scroll">
+    <div id="messagesContainer" tabindex="-1" aria-label="Диалог с ИИ-наставником" class="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 space-y-4 custom-scroll">
       <div id="messages" class="max-w-2xl mx-auto space-y-4">
         <div id="welcomePanel" class="flex gap-3">
           <div class="w-6 h-6 rounded bg-[#0C36CD] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5" aria-hidden="true">?</div>
@@ -349,7 +387,16 @@
       if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
         return escapeHtml(text).replace(/\n/g, "<br>");
       }
-      return DOMPurify.sanitize(marked.parse(text));
+      const safeHtml = DOMPurify.sanitize(marked.parse(text));
+      // каждую таблицу помещаем в контейнер с горизонтальной прокруткой
+      const doc = new DOMParser().parseFromString(safeHtml, "text/html");
+      doc.querySelectorAll("table").forEach((table) => {
+        const wrapper = doc.createElement("div");
+        wrapper.className = "table-scroll";
+        table.parentNode.insertBefore(wrapper, table);
+        wrapper.appendChild(table);
+      });
+      return doc.body.innerHTML;
     }
 
     let docsStatusTimer = null;
@@ -390,7 +437,7 @@
         return `
           <div class="group flex items-center justify-between p-2 rounded bg-slate-100 dark:bg-zinc-800/60 text-xs">
             <div class="min-w-0 pr-1">
-              <div class="font-medium text-slate-700 dark:text-zinc-300 truncate" title="${filename}">${filename}</div>
+              <div class="doc-filename font-medium text-slate-700 dark:text-zinc-300 truncate" title="${filename}">${filename}</div>
               <div class="text-xs text-slate-600 dark:text-zinc-300">${escapeHtml(d.pages)} стр. · ${escapeHtml(d.chunks)} фрагм.</div>
             </div>
             ${canManageDocuments ? `
@@ -810,7 +857,7 @@
                         </span>
                         <span class="text-[11px] text-slate-600 dark:text-zinc-300 mono font-normal shrink-0">показать цитату</span>
                       </summary>
-                      <div class="px-3 py-2 text-[11px] text-slate-600 dark:text-zinc-400 border-t border-slate-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-950/70 mono leading-relaxed whitespace-pre-wrap break-words">${escapeHtml(s.text)}</div>
+                      <div class="source-quote px-3 py-2 text-[11px] text-slate-600 dark:text-zinc-400 border-t border-slate-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-950/70 mono leading-relaxed whitespace-pre-wrap break-words">${escapeHtml(s.text)}</div>
                     </details>`).join("");
               }
             } else if (payload.type === "token") {
