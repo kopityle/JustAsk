@@ -31,15 +31,24 @@ def dedupe_chunks(chunks: list, limit: int = 4) -> list:
     return unique
 
 
+SESSION_EXPIRED_DETAIL = (
+    "Сессия истекла или недействительна. Откройте сервис из Moodle заново."
+)
+
+
 def get_session_context(authorization: str = None) -> dict:
-    if not authorization:
+    if not authorization or not authorization.strip():
         return {"role": "guest", "course_id": "default_course", "name": "Гость"}
+
+    token = authorization.replace("Bearer ", "", 1).strip()
+    if not token:
+        raise HTTPException(status_code=401, detail=SESSION_EXPIRED_DETAIL)
+
     try:
-        token = authorization.replace("Bearer ", "").strip()
-        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-        return payload
-    except Exception:
-        return {"role": "guest", "course_id": "default_course", "name": "Гость"}
+        return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except jwt.InvalidTokenError:
+        # ExpiredSignatureError тоже наследуется от InvalidTokenError.
+        raise HTTPException(status_code=401, detail=SESSION_EXPIRED_DETAIL)
 
 @router.post("/chat/stream")
 async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization: str = Header(None)):

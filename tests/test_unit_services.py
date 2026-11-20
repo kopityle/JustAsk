@@ -1,8 +1,12 @@
 import sys
+import time
 from pathlib import Path
 
+import jwt
 import pytest
 import pymupdf
+from fastapi import HTTPException
+
 from app.core.config import settings
 from app.services.pdf_loader import clean_pdf_text, load_and_chunk_file, split_text_clean
 from app.services.vector_store import FastEmbedFunction, VectorStore
@@ -154,10 +158,40 @@ def test_get_session_context_guest():
     ctx = get_session_context(None)
     assert ctx["role"] == "guest"
     assert ctx["course_id"] == "default_course"
+    assert get_session_context("   ")["role"] == "guest"
+
 
 def test_get_session_context_invalid_token():
-    ctx = get_session_context("Bearer invalid.fake.token")
-    assert ctx["role"] == "guest"
+    for header in ("Bearer invalid.fake.token", "Bearer ", "invalid.fake.token"):
+        with pytest.raises(HTTPException) as exc:
+            get_session_context(header)
+        assert exc.value.status_code == 401
+        assert "Сессия истекла" in exc.value.detail
+
+
+def test_expired_token_rejected_by_chat_and_documents(client):
+    token = jwt.encode(
+        {
+            "role": "teacher",
+            "course_id": "test_course",
+            "name": "Преподаватель",
+            "exp": int(time.time()) - 60,
+        },
+        settings.JWT_SECRET,
+        algorithm="HS256",
+    )
+    headers = {"Authorization": f"Bearer {token}"}
+
+    chat_response = client.post(
+        "/api/chat/stream",
+        json={"question": "Что такое база данных?"},
+        headers=headers,
+    )
+    documents_response = client.get("/api/documents", headers=headers)
+
+    for response in (chat_response, documents_response):
+        assert response.status_code == 401
+        assert "Сессия истекла" in response.json()["detail"]
 
 
 def test_default_course_is_strictly_isolated(tmp_path, monkeypatch):

@@ -217,6 +217,23 @@
       }
     };
 
+    function handleSessionExpired(message) {
+      sessionStorage.removeItem('justask_jwt');
+      token = null;
+      isStudent = false;
+      canManageDocuments = false;
+      hasCourseDocuments = null;
+      if ($('roleBadge')) $('roleBadge').innerText = 'Гость';
+      if ($('courseBadge')) $('courseBadge').innerText = 'Курс: Основной';
+      if ($('teacherUploadBlock')) $('teacherUploadBlock').classList.add('hidden');
+      if ($('devWriteBanner')) $('devWriteBanner').classList.add('hidden');
+      const list = $('docsList');
+      if (list) list.innerHTML = `<div class="text-xs text-red-500 py-2">${escapeHtml(message)}</div>`;
+      applyOnboardingAvailability(false, false);
+      setDocsStatus(message, 'error');
+      setSrStatus(message);
+    }
+
     let isStudent = false;
     let canManageDocuments = false;
     let hasCourseDocuments = null;
@@ -405,6 +422,10 @@
       const list = $("docsList");
       try {
         const res = await fetch("/api/documents", { headers: getAuthHeaders() });
+        if (res.status === 401) {
+          handleSessionExpired(await readError(res));
+          return;
+        }
         if (!res.ok) throw new Error(await readError(res));
         const data = await res.json();
         canManageDocuments = Boolean(data.can_manage);
@@ -425,6 +446,10 @@
       if (!confirm(`Удалить «${filename}»? Материал исчезнет из поиска по курсу.`)) return;
       try {
         const res = await fetch(`/api/documents/${encodeURIComponent(filename)}`, { method: "DELETE", headers: getAuthHeaders() });
+        if (res.status === 401) {
+          handleSessionExpired(await readError(res));
+          return;
+        }
         if (!res.ok) throw new Error(await readError(res));
         const data = await res.json();
         setDocsStatus(`Удалено: ${data.filename}. Фрагментов: ${data.removed_chunks}.`, 'success', true);
@@ -481,6 +506,10 @@
           headers: getAuthHeaders(),
           body: form
         });
+        if (res.status === 401) {
+          handleSessionExpired(await readError(res));
+          return;
+        }
         if (!res.ok) throw new Error(await readError(res));
         const resData = await res.json();
         setDocsStatus(`Успешно! Добавлено ${resData.indexed_chunks} чанков.`, "success", true);
@@ -629,6 +658,19 @@
       setSrStatus(message);
     }
 
+    function showSessionExpired(msgId, message) {
+      const thinking = $(`${msgId}_thinking`);
+      const text = $(`${msgId}_text`);
+      const actions = $(`${msgId}_actions`);
+      if (thinking) thinking.classList.add("hidden");
+      if (text) {
+        text.classList.remove("hidden");
+        text.innerHTML = `<div class="text-xs text-red-600 dark:text-red-400" role="alert">${escapeHtml(message)}</div>`;
+      }
+      if (actions) actions.classList.add("hidden");
+      setSrStatus(message);
+    }
+
     function setAnswerStatus(msgId, hasSources, isFound) {
       const status = $(`${msgId}_status`);
       if (!status) return;
@@ -707,6 +749,12 @@
           body: JSON.stringify({ question: q }),
           signal: controller.signal
         });
+        if (response.status === 401) {
+          const detail = await readError(response);
+          handleSessionExpired(detail);
+          showSessionExpired(msgId, detail);
+          return;
+        }
         if (!response.ok) throw new Error(await readError(response));
         if (!response.body) throw new Error("Сервер не вернул поток ответа.");
 
@@ -720,7 +768,8 @@
         let buffer = "";
 
         const finalizeAnswer = () => {
-          const notFoundByText = /ответ на этот вопрос не найден/i.test(rawAnswer);
+          const trimmed = rawAnswer.trim();
+          const notFoundByText = trimmed.length <= 200 && /^(?:в\s+материалах(?:\s+курса)?\s+)?ответ\s+на\s+этот\s+вопрос\s+не\s+найден[.!]?$/i.test(trimmed);
           actionsContainer.classList.remove("hidden");
           setAnswerStatus(msgId, hasSources, notFoundByText ? false : isFound);
           return notFoundByText;
