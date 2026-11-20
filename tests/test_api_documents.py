@@ -106,6 +106,31 @@ def test_upload_accepts_uppercase_extension(client, tmp_path, teacher_headers, m
     assert (tmp_path / "test_course" / "notes.PDF").exists()
 
 
+def test_upload_accepts_docx(client, tmp_path, teacher_headers, monkeypatch):
+    monkeypatch.setattr(settings, "DOCS_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        "app.api.documents.load_and_chunk_file",
+        lambda path: [{"document": "notes.docx", "page": 1, "text": "hello"}],
+    )
+    monkeypatch.setattr("app.api.documents.vector_store.add_chunks", lambda chunks, course_id=None: None)
+    monkeypatch.setattr("app.api.documents.vector_store.delete_document", lambda filename, course_id=None: 0)
+
+    file_data = io.BytesIO(b"fake docx content")
+    response = client.post(
+        "/api/documents/upload",
+        files={
+            "file": (
+                "notes.docx",
+                file_data,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        },
+        headers=teacher_headers,
+    )
+    assert response.status_code == 200
+    assert (tmp_path / "test_course" / "notes.docx").exists()
+
+
 def test_same_filename_in_two_courses_does_not_conflict(client, tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "DOCS_DIR", str(tmp_path))
     monkeypatch.setattr(

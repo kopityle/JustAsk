@@ -1,6 +1,6 @@
 import pytest
 from app.core.config import settings
-from app.services.pdf_loader import clean_pdf_text, split_text_clean
+from app.services.pdf_loader import clean_pdf_text, load_and_chunk_file, split_text_clean
 from app.services.vector_store import FastEmbedFunction, VectorStore
 from app.api.chat import GREETING_REGEX, get_session_context
 
@@ -17,6 +17,29 @@ def test_clean_pdf_text_preserves_paragraphs():
 def test_split_text_clean_empty():
     assert split_text_clean("") == []
     assert split_text_clean(None) == []
+
+def test_load_and_chunk_docx(tmp_path):
+    from docx import Document as DocxDocument
+
+    path = tmp_path / "method.docx"
+    document = DocxDocument()
+    document.add_paragraph("Первый абзац методички.")
+    table = document.add_table(rows=1, cols=2)
+    table.cell(0, 0).text = "Задание"
+    table.cell(0, 1).text = "Описание задания"
+    document.add_heading("Раздел 2", level=1)
+    document.add_paragraph("Второй абзац после заголовка.")
+    document.save(str(path))
+
+    chunks = load_and_chunk_file(str(path))
+    assert chunks
+    assert all(chunk["page"] >= 1 for chunk in chunks)
+    joined = "\n".join(chunk["text"] for chunk in chunks)
+    assert "Первый абзац" in joined
+    assert "Задание" in joined
+    assert "Второй абзац" in joined
+    assert max(chunk["page"] for chunk in chunks) >= 2
+
 
 def test_split_text_clean_boundaries():
     # Проверяем, что чанкер не режет слова посредине и учитывает overlap

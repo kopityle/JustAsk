@@ -3,6 +3,17 @@ import re
 from typing import List, Dict
 
 
+def _docx_has_page_break(paragraph) -> bool:
+    """Явный разрыв страницы или разрыв, проставленный Word при pagination."""
+    xml = paragraph._p.xml
+    return 'w:type="page"' in xml or "lastRenderedPageBreak" in xml
+
+
+def _docx_is_heading(paragraph) -> bool:
+    name = (paragraph.style.name or "").lower()
+    return bool(re.match(r"^(heading|заголовок)\s*[12]$", name))
+
+
 def clean_pdf_text(text: str) -> str:
     """Normalize typography produced by PDF extractors.
 
@@ -93,5 +104,49 @@ def load_and_chunk_file(file_path: str) -> List[Dict]:
                     "page": 1,
                     "text": c
                 })
+    elif file_path.lower().endswith(".docx"):
+        from docx import Document
+        from docx.table import Table
+        from docx.text.paragraph import Paragraph
+
+        doc = Document(file_path)
+        page_no = 1
+        block_parts: List[str] = []
+
+        def flush_block() -> None:
+            nonlocal page_no, block_parts
+            text = clean_pdf_text("\n".join(block_parts))
+            for chunk in split_text_clean(text, chunk_size=1000, overlap=150):
+                chunks.append({"document": doc_name, "page": page_no, "text": chunk})
+
+        def next_page() -> None:
+            nonlocal page_no, block_parts
+            if not block_parts:
+                return
+            flush_block()
+            block_parts = []
+            page_no += 1
+
+        for item in doc.iter_inner_content():
+            if isinstance(item, Paragraph):
+                if _docx_has_page_break(item) or _docx_is_heading(item):
+                    next_page()
+                text = (item.text or "").strip()
+            elif isinstance(item, Table):
+                rows = [
+                    " | ".join(cell.text.strip() for cell in row.cells)
+                    for row in item.rows
+                ]
+                text = "\n".join(row for row in rows if row.strip(" |"))
+            else:
+                continue
+
+            if not text:
+                continue
+            if len("\n".join(block_parts)) + len(text) > 3000:
+                next_page()
+            block_parts.append(text)
+
+        flush_block()
     return chunks
 

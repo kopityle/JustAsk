@@ -20,7 +20,7 @@ def safe_course_id(course_id: str = None) -> str:
     return cleaned or "default_course"
 
 
-ALLOWED_EXTENSIONS = {".pdf", ".txt"}
+ALLOWED_EXTENSIONS = {".pdf", ".txt", ".docx"}
 WINDOWS_RESERVED_NAMES = {
     "con", "prn", "aux", "nul",
     *(f"com{i}" for i in range(1, 10)),
