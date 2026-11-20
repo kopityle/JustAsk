@@ -27,6 +27,11 @@ class LTIRequestValidator(RequestValidator):
         return 1, 255
 
     @property
+    def safe_characters(self):
+        # RFC 5849: client key и nonce могут содержать unreserved-символы.
+        return set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+
+    @property
     def dummy_client(self):
         return "dummy"
 

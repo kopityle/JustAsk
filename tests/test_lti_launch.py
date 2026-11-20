@@ -3,7 +3,6 @@ import uuid
 from urllib.parse import parse_qs, urlparse
 
 import jwt
-import pytest
 from oauthlib.oauth1 import Client, SIGNATURE_TYPE_BODY
 
 from app.api.lti import _build_course_id, _role_from_lti
@@ -11,15 +10,6 @@ from app.core.config import settings
 
 
 LTI_LAUNCH_URL = "https://testserver/api/lti/launch"
-
-
-@pytest.fixture
-def oauth_consumer_key(monkeypatch):
-    # oauthlib по умолчанию считает безопасными только буквы и цифры,
-    # поэтому для подписи берём ключ без подчёркиваний.
-    key = "testmoodleconsumerkey"
-    monkeypatch.setattr(settings, "LTI_CONSUMER_KEY", key)
-    return key
 
 
 def _signed_lti_body(nonce=None, timestamp=None, **overrides):
@@ -86,7 +76,9 @@ def test_lti_course_id_sanitizes_special_characters():
     assert ".." not in course_id
 
 
-def test_lti_launch_with_valid_oauth_signature_issues_jwt(client, oauth_consumer_key):
+def test_lti_launch_with_valid_oauth_signature_issues_jwt(client):
+    # Реальный ключ из конфигурации содержит подчёркивание.
+    assert "_" in settings.LTI_CONSUMER_KEY
     body, headers = _signed_lti_body()
 
     response = _post_signed_launch(client, body, headers)
@@ -101,15 +93,15 @@ def test_lti_launch_with_valid_oauth_signature_issues_jwt(client, oauth_consumer
     assert payload["name"] == "Иван Преподаватель"
 
 
-def test_lti_launch_rejects_replayed_nonce(client, oauth_consumer_key):
-    nonce = f"replay{uuid.uuid4().hex}"
+def test_lti_launch_rejects_replayed_nonce(client):
+    nonce = f"replay-{uuid.uuid4().hex}"
     body, headers = _signed_lti_body(nonce=nonce)
 
     assert _post_signed_launch(client, body, headers).status_code == 302
     assert _post_signed_launch(client, body, headers).status_code == 401
 
 
-def test_lti_launch_rejects_expired_timestamp(client, oauth_consumer_key):
+def test_lti_launch_rejects_expired_timestamp(client):
     body, headers = _signed_lti_body(timestamp=int(time.time()) - 400)
 
     response = _post_signed_launch(client, body, headers)
