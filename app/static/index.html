@@ -61,6 +61,7 @@
     .msg-body .table-scroll {
       overflow-x: auto;
       max-width: 100%;
+      margin: 8px 0;
       -webkit-overflow-scrolling: touch;
     }
     .msg-body table {
@@ -70,7 +71,36 @@
     }
     .msg-body table th,
     .msg-body table td {
+      padding: 6px 10px;
+      border: 1px solid #cbd5e1;
+      text-align: left;
       overflow-wrap: break-word;
+    }
+    .msg-body thead th {
+      background: #f1f5f9;
+      font-weight: 600;
+    }
+    .dark .msg-body table th,
+    .dark .msg-body table td {
+      border-color: #3f3f46;
+    }
+    .dark .msg-body thead th {
+      background: #27272a;
+    }
+
+    /* Markdown без плагина Typography: маркеры и отступы задаём сами. */
+    .msg-body p {
+      margin: 8px 0;
+    }
+    .msg-body ul,
+    .msg-body ol {
+      margin: 8px 0;
+      padding-left: 22px;
+    }
+    .msg-body ul { list-style: disc; }
+    .msg-body ol { list-style: decimal; }
+    .msg-body li {
+      margin: 4px 0;
     }
 
     /* Длинные слова не разрывают карточку: ответ, цитата и имя файла. */
@@ -125,7 +155,7 @@
       <div class="flex-1 overflow-y-auto custom-scroll pr-1">
         <div class="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-zinc-300 uppercase tracking-wider mb-2">
           <span>Материалы</span>
-          <span id="chunksCount" class="mono text-slate-600 dark:text-zinc-300">0 чанков</span>
+          <span id="chunksCount" class="mono text-slate-600 dark:text-zinc-300">0 фрагментов</span>
         </div>
         <div id="docsList" class="space-y-1.5"></div>
       </div>
@@ -246,6 +276,15 @@
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[ch]));
     const setSrStatus = (message) => { const el = $("srStatus"); if (el) el.textContent = message; };
+    const fragmentsLabel = (value) => {
+      const n = Number(value) || 0;
+      const mod10 = n % 10;
+      const mod100 = n % 100;
+      const word = mod10 === 1 && mod100 !== 11 ? "фрагмент"
+        : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? "фрагмента"
+          : "фрагментов";
+      return `${n} ${word}`;
+    };
     const readError = async (response) => {
       try {
         const data = await response.json();
@@ -399,6 +438,11 @@
       return doc.body.innerHTML;
     }
 
+    function highlightCodeBlocks(root) {
+      if (typeof hljs === "undefined" || !root) return;
+      root.querySelectorAll("pre code").forEach((el) => hljs.highlightElement(el));
+    }
+
     let docsStatusTimer = null;
     function setDocsStatus(message, type = 'info', autoHide = false) {
       const statusMsg = $("uploadStatusMsg");
@@ -479,7 +523,7 @@
         hasCourseDocuments = Array.isArray(data.documents) && data.documents.length > 0;
         $("teacherUploadBlock").classList.toggle("hidden", !canManageDocuments);
         $("devWriteBanner").classList.toggle("hidden", !data.dev_write_access);
-        $("chunksCount").innerText = `${data.total_chunks} чанков`;
+        $("chunksCount").innerText = fragmentsLabel(data.total_chunks);
         renderDocsList(data.documents);
         applyOnboardingAvailability(hasCourseDocuments, canManageDocuments);
       } catch (err) {
@@ -544,7 +588,7 @@
 
       uploadBtn.disabled = true;
       uploadText.innerHTML = '<span class="inline-block animate-spin mr-1" aria-hidden="true">🌀</span> Индексация (до 1 мин)...';
-      setDocsStatus("Идёт нарезка на чанки и вычисление векторов...", "info");
+      setDocsStatus("Идёт нарезка на фрагменты и вычисление векторов...", "info");
       setSrStatus("Идёт индексация файла. Это может занять до минуты.");
 
       const form = new FormData();
@@ -564,7 +608,7 @@
         }
         if (!res.ok) throw new Error(await readError(res));
         const resData = await res.json();
-        setDocsStatus(`Успешно! Добавлено ${resData.indexed_chunks} чанков.`, "success", true);
+        setDocsStatus(`Успешно! Добавлено ${fragmentsLabel(resData.indexed_chunks)}.`, "success", true);
         setSrStatus(`Файл ${file.name} добавлен. Проиндексировано фрагментов: ${resData.indexed_chunks}.`);
       } catch (err) {
         setDocsStatus(`Ошибка: ${err.message}`, "error");
@@ -706,6 +750,7 @@
         text.innerHTML = printedAnswer
           ? `${renderSafeMarkdown(printedAnswer)}<div class="mt-3 pt-2 border-t border-slate-200 dark:border-zinc-800">${errorBlock}</div>`
           : errorBlock;
+        highlightCodeBlocks(text);
       }
       if (actions) actions.classList.add("hidden");
       setSrStatus(message);
@@ -763,7 +808,7 @@
       msgEl.setAttribute("data-q", q);
       msgEl.innerHTML = `
         <div class="w-6 h-6 rounded bg-[#0C36CD] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5" aria-hidden="true">?</div>
-        <div class="flex-1 space-y-2 max-w-xl">
+        <div class="flex-1 min-w-0 space-y-2 max-w-xl">
           <div id="${msgId}_box" class="text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-3.5 rounded-lg text-slate-800 dark:text-zinc-200 leading-relaxed shadow-sm">
             <div id="${msgId}_thinking" class="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 py-1">
               <span class="inline-block animate-spin" aria-hidden="true">🌀</span>
@@ -868,7 +913,11 @@
               }
               rawAnswer += payload.token;
               textContainer.innerHTML = renderSafeMarkdown(rawAnswer);
-              container.scrollTop = container.scrollHeight;
+              highlightCodeBlocks(textContainer);
+              // Листаем вниз только если пользователь уже у нижнего края ленты.
+              if (container.scrollHeight - container.scrollTop - container.clientHeight < 100) {
+                container.scrollTop = container.scrollHeight;
+              }
             }
           } catch (jsonErr) {
             // Ignore malformed events; keep the stream alive.
