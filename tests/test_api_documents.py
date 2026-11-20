@@ -1,5 +1,15 @@
 import io
+import jwt
 from app.core.config import settings
+
+
+def teacher_headers_for_course(course_id):
+    token = jwt.encode(
+        {"role": "teacher", "course_id": course_id, "name": "Преподаватель"},
+        settings.JWT_SECRET,
+        algorithm="HS256",
+    )
+    return {"Authorization": f"Bearer {token}"}
 
 def test_guest_cannot_upload_by_default(client, monkeypatch):
     monkeypatch.setattr(settings, "ALLOW_GUEST_WRITES", False)
@@ -27,6 +37,7 @@ def test_guest_can_upload_when_dev_flag_enabled(client, tmp_path, monkeypatch):
     )
     assert response.status_code == 200
     assert response.json()["indexed_chunks"] == 1
+    assert (tmp_path / "default_course" / "guest.pdf").exists()
 
 def test_student_cannot_upload(client, student_headers):
     file_data = io.BytesIO(b"fake pdf content")
@@ -75,7 +86,7 @@ def test_upload_rejects_oversized_file(client, tmp_path, teacher_headers, monkey
         headers=teacher_headers
     )
     assert response.status_code == 413
-    assert not (tmp_path / "large.txt").exists()
+    assert not (tmp_path / "test_course" / "large.txt").exists()
 
 def test_upload_accepts_uppercase_extension(client, tmp_path, teacher_headers, monkeypatch):
     monkeypatch.setattr(settings, "DOCS_DIR", str(tmp_path))
@@ -92,7 +103,30 @@ def test_upload_accepts_uppercase_extension(client, tmp_path, teacher_headers, m
         headers=teacher_headers
     )
     assert response.status_code == 200
-    assert (tmp_path / "notes.PDF").exists()
+    assert (tmp_path / "test_course" / "notes.PDF").exists()
+
+
+def test_same_filename_in_two_courses_does_not_conflict(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "DOCS_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        "app.api.documents.load_and_chunk_file",
+        lambda path: [{"document": "lecture.pdf", "page": 1, "text": "hello"}],
+    )
+    monkeypatch.setattr("app.api.documents.vector_store.add_chunks", lambda chunks, course_id=None: None)
+    monkeypatch.setattr("app.api.documents.vector_store.delete_document", lambda filename, course_id=None: 0)
+
+    for course_id in ("course_a", "course_b"):
+        file_data = io.BytesIO(b"fake pdf content")
+        response = client.post(
+            "/api/documents/upload",
+            files={"file": ("lecture.pdf", file_data, "application/pdf")},
+            headers=teacher_headers_for_course(course_id),
+        )
+        assert response.status_code == 200
+
+    assert (tmp_path / "course_a" / "lecture.pdf").exists()
+    assert (tmp_path / "course_b" / "lecture.pdf").exists()
+
 
 def test_documents_info_reports_permissions(client, student_headers, teacher_headers, monkeypatch):
     monkeypatch.setattr(settings, "ALLOW_GUEST_WRITES", False)

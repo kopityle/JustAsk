@@ -8,6 +8,18 @@ from app.api.chat import get_session_context
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
+# Индексация книг тяжёлая — не даём двум преподавателям грузить её одновременно.
+upload_semaphore = asyncio.Semaphore(1)
+
+_UNSAFE_COURSE_ID_CHARS = re.compile(r"[^A-Za-z0-9_-]")
+
+
+def safe_course_id(course_id: str = None) -> str:
+    """Нормализуем ID курса перед использованием его как имени подпапки."""
+    cleaned = _UNSAFE_COURSE_ID_CHARS.sub("_", (course_id or "").strip())
+    return cleaned or "default_course"
+
+
 ALLOWED_EXTENSIONS = {".pdf", ".txt"}
 WINDOWS_RESERVED_NAMES = {
     "con", "prn", "aux", "nul",
@@ -53,7 +65,7 @@ def validate_filename(filename: str) -> str:
 @router.get("")
 def get_documents_info(authorization: str = Header(None)):
     session = get_session_context(authorization)
-    course_id = session.get("course_id", "default_course")
+    course_id = safe_course_id(session.get("course_id"))
     role = session.get("role", "guest")
     return {
         "documents": vector_store.get_document_stats(course_id=course_id),
@@ -88,9 +100,10 @@ async def upload_document(file: UploadFile = File(...), authorization: str = Hea
     require_manage_permission(session, "Загрузка доступна только преподавателю")
 
     filename = validate_filename(file.filename)
-    course_id = session.get("course_id", "default_course")
-    os.makedirs(settings.DOCS_DIR, exist_ok=True)
-    path = os.path.join(settings.DOCS_DIR, filename)
+    course_id = safe_course_id(session.get("course_id"))
+    course_dir = os.path.join(settings.DOCS_DIR, course_id)
+    os.makedirs(course_dir, exist_ok=True)
+    path = os.path.join(course_dir, filename)
 
     if os.path.exists(path):
         raise HTTPException(
@@ -99,12 +112,13 @@ async def upload_document(file: UploadFile = File(...), authorization: str = Hea
         )
 
     try:
-        await asyncio.to_thread(save_file, file, path)
-        chunks = await asyncio.to_thread(load_and_chunk_file, path)
-        if not chunks:
-            raise HTTPException(status_code=400, detail="В файле не найден текст для индексации")
-        await asyncio.to_thread(vector_store.delete_document, filename, course_id)
-        await asyncio.to_thread(vector_store.add_chunks, chunks, course_id=course_id)
+        async with upload_semaphore:
+            await asyncio.to_thread(save_file, file, path)
+            chunks = await asyncio.to_thread(load_and_chunk_file, path)
+            if not chunks:
+                raise HTTPException(status_code=400, detail="В файле не найден текст для индексации")
+            await asyncio.to_thread(vector_store.delete_document, filename, course_id)
+            await asyncio.to_thread(vector_store.add_chunks, chunks, course_id=course_id)
     except Exception:
         await asyncio.to_thread(vector_store.delete_document, filename, course_id)
         if os.path.exists(path):
@@ -120,9 +134,9 @@ def delete_document(filename: str, authorization: str = Header(None)):
     require_manage_permission(session, "Удаление доступно только преподавателю")
 
     filename = validate_filename(filename)
-    course_id = session.get("course_id", "default_course")
+    course_id = safe_course_id(session.get("course_id"))
     removed_chunks = vector_store.delete_document(filename, course_id=course_id)
-    file_path = os.path.join(settings.DOCS_DIR, filename)
+    file_path = os.path.join(settings.DOCS_DIR, course_id, filename)
     if os.path.exists(file_path):
         os.remove(file_path)
     elif removed_chunks == 0:
