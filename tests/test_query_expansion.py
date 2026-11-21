@@ -5,11 +5,14 @@ def _chunk(distance):
     return {"document": "doc", "page": 1, "text": "text", "distance": distance}
 
 
-def test_should_expand_only_for_empty_abbreviation_query():
+def test_should_expand_only_for_empty_meaningful_query():
     assert should_expand_query("Сформулируй требования 1НФ", []) is True
     assert should_expand_query("Сформулируй требования 1НФ", [_chunk(None)]) is False
     assert should_expand_query("Сформулируй требования 1НФ", [_chunk(0.4)]) is False
-    assert should_expand_query("Закон Фарадея", []) is False
+    assert should_expand_query("Закон Фарадея", []) is True
+    assert should_expand_query("какую модель сделали", []) is True
+    assert should_expand_query("какую модель сделали", [_chunk(0.4)]) is False
+    assert should_expand_query("алоо", []) is False
 
 
 def test_parse_expanded_queries_strips_numbering_and_deduplicates():

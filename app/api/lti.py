@@ -1,4 +1,5 @@
 import os
+import re
 from urllib.parse import urlencode
 import jwt
 import time
@@ -24,6 +25,11 @@ class LTIRequestValidator(RequestValidator):
     @property
     def nonce_length(self):
         return 1, 255
+
+    @property
+    def safe_characters(self):
+        # RFC 5849: client key и nonce могут содержать unreserved-символы.
+        return set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
 
     @property
     def dummy_client(self):
@@ -72,6 +78,18 @@ def _role_from_lti(roles: str) -> str:
         return "teacher"
     return "student"
 
+
+_UNSAFE_COURSE_ID_CHARS = re.compile(r"[^A-Za-z0-9_-]")
+
+
+def _build_course_id(context_id: str, resource_link_id: str) -> str:
+    """Build a filesystem-safe course id from LTI context and resource link."""
+    context = (context_id or "").strip()
+    link = (resource_link_id or "").strip()
+    raw = f"{context}_{link}" if link and context else (link or context)
+    course_id = _UNSAFE_COURSE_ID_CHARS.sub("_", raw)
+    return course_id or "default_course"
+
 @router.post("/launch")
 async def lti_launch(request: Request):
     body = (await request.body()).decode("utf-8")
@@ -80,9 +98,9 @@ async def lti_launch(request: Request):
     form_dict = {key: str(value) for key, value in form.items()}
 
     # КЛЮЧЕВОЙ МОМЕНТ:
-    # Moodle подписывает запрос на HTTPS адрес, даже если внутренне туннель HTTP
-    # Берем хост из заголовка, который передал Cloudflare
-    proto = "https"
+    # Moodle подписывает публичный URL. За туннелем/прокси внутренняя схема может быть http,
+    # поэтому берём протокол из X-Forwarded-Proto, а при его отсутствии — из request.url.scheme.
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme).split(",")[0].strip()
     host = request.headers.get("host")
     public_uri = f"{proto}://{host}{request.url.path}"
 
@@ -104,12 +122,20 @@ async def lti_launch(request: Request):
 
     # Извлекаем роль и данные пользователя
     role = _role_from_lti(form_dict.get("roles", ""))
-    course_id = form_dict.get("context_id") or "default_course"
+    course_id = _build_course_id(
+        form_dict.get("context_id"),
+        form_dict.get("resource_link_id"),
+    )
     name = form_dict.get("lis_person_name_full") or "Пользователь Moodle"
 
     # Выпускаем JWT токен сессии
     token = jwt.encode(
-        {"name": name, "role": role, "course_id": course_id},
+        {
+            "name": name,
+            "role": role,
+            "course_id": course_id,
+            "exp": int(time.time()) + 86400,
+        },
         settings.JWT_SECRET,
         algorithm="HS256",
     )

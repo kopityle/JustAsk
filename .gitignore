@@ -16,11 +16,15 @@ data/chroma/
 *.pid
 
 # Учебные PDF (копирайт) и рантайм-данные
-data/docs/*.pdf
+data/**/*.pdf
 data/feedback.*
+*.log
 
 # Интерактивные Locust-отчёты (остаются локально, в репо PDF-экспорт)
 benchmarks/results/*.html
+
+# Сгенерированные архивы кодовой базы
+repomix-output.*
 
 # Служебные папки агентов 
 .opencode/

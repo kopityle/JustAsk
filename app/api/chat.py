@@ -31,15 +31,24 @@ def dedupe_chunks(chunks: list, limit: int = 4) -> list:
     return unique
 
 
+SESSION_EXPIRED_DETAIL = (
+    "Сессия истекла или недействительна. Откройте сервис из Moodle заново."
+)
+
+
 def get_session_context(authorization: str = None) -> dict:
-    if not authorization:
+    if not authorization or not authorization.strip():
         return {"role": "guest", "course_id": "default_course", "name": "Гость"}
+
+    token = authorization.replace("Bearer ", "", 1).strip()
+    if not token:
+        raise HTTPException(status_code=401, detail=SESSION_EXPIRED_DETAIL)
+
     try:
-        token = authorization.replace("Bearer ", "").strip()
-        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-        return payload
-    except Exception:
-        return {"role": "guest", "course_id": "default_course", "name": "Гость"}
+        return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except jwt.InvalidTokenError:
+        # ExpiredSignatureError тоже наследуется от InvalidTokenError.
+        raise HTTPException(status_code=401, detail=SESSION_EXPIRED_DETAIL)
 
 @router.post("/chat/stream")
 async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization: str = Header(None)):
@@ -47,8 +56,11 @@ async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization
     if not raw_question:
         raise HTTPException(status_code=400, detail="Вопрос пуст")
 
+    # Локальный импорт: app.api.documents импортирует get_session_context из этого модуля.
+    from app.api.documents import safe_course_id
+
     session = get_session_context(authorization)
-    course_id = session.get("course_id", "default_course")
+    course_id = safe_course_id(session.get("course_id"))
 
     clean_search_query = GREETING_REGEX.sub('', raw_question).strip()
     is_pure_greeting = len(clean_search_query) < 2
@@ -60,12 +72,25 @@ async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization
         chunks = await asyncio.to_thread(vector_store.search, clean_search_query, top_k=4, course_id=course_id)
 
         # Тяжёлое расширение — только если первый поиск вернул 0 результатов
-        # и в вопросе есть аббревиатура (например, 1НФ).
+        # и вопрос содержательный: аббревиатура или минимум 2 слова.
+        # Это тоже вызов Ollama, поэтому он идёт под тем же семафором, что и поток ответа.
         if should_expand_query(clean_search_query, chunks):
+            expanded_queries = []
             try:
-                expanded_queries = await asyncio.wait_for(expand_query(clean_search_query), timeout=15.0)
+                # Короткое ожидание: при занятой Ollama лучше сразу fast-fail,
+                # чем держать аббревиатурный вопрос ещё 40 секунд.
+                await asyncio.wait_for(inference_semaphore.acquire(), timeout=5.0)
             except asyncio.TimeoutError:
-                expanded_queries = []
+                pass  # перегружены: отвечаем по результатам первого поиска
+            else:
+                try:
+                    expanded_queries = await asyncio.wait_for(
+                        expand_query(clean_search_query), timeout=15.0
+                    )
+                except asyncio.TimeoutError:
+                    expanded_queries = []
+                finally:
+                    inference_semaphore.release()
 
             expanded_chunks = []
             for expanded_query in expanded_queries:
@@ -90,7 +115,11 @@ async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization
                 msg = "В материалах курса ответ на этот вопрос не найден."
                 yield f"data: {json.dumps({'type': 'token', 'token': msg}, ensure_ascii=False)}\n\n"
                 yield "data: [DONE]\n\n"
-            return StreamingResponse(fast_reject_stream(), media_type="text/event-stream")
+            return StreamingResponse(
+                fast_reject_stream(),
+                media_type="text/event-stream",
+                headers={"X-Accel-Buffering": "no"},
+            )
 
         seen_pages = set()
         for c in chunks:
@@ -101,7 +130,7 @@ async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization
 
     async def event_generator():
         try:
-            # Ждем свободный слот не дольше 25 секунд
+            # Ждем свободный слот не дольше 40 секунд
             await asyncio.wait_for(inference_semaphore.acquire(), timeout=40.0)
         except asyncio.TimeoutError:
             yield f"data: {json.dumps({'type': 'token', 'token': '⚠️ Сервер сейчас перегружен большим количеством вопросов. Пожалуйста, повторите попытку через минуту.'}, ensure_ascii=False)}\n\n"
@@ -127,7 +156,11 @@ async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization
 
         yield "data: [DONE]\n\n"
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"X-Accel-Buffering": "no"},
+    )
 
 @router.post("/feedback")
 def submit_feedback(req: FeedbackRequest):

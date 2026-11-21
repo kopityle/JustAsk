@@ -1,0 +1,20 @@
+[Unit]
+Description=JustAsk AI Tutor (FastAPI + ChromaDB)
+After=network.target ollama.service
+Wants=ollama.service
+
+[Service]
+Type=simple
+User=justask
+Group=justask
+WorkingDirectory=/opt/justask
+EnvironmentFile=/opt/justask/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/justask/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
