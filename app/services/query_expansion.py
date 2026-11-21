@@ -1,8 +1,8 @@
 """LLM query expansion for weak retrieval results.
 
 The fast path stays deterministic: expansion is only requested when the first
-search returned no chunks at all and the query contains an abbreviation-like
-token. This keeps off-topic and normal queries fast.
+search returned no chunks and the query is meaningful — either an abbreviation
+or at least two word-like tokens. This keeps single-word spam fast.
 """
 
 import re
@@ -21,10 +21,13 @@ EXPANSION_SYSTEM_PROMPT = """Ты — поисковый ассистент. П�
 3. Верни только поисковые запросы, каждый с новой строки, без нумерации и пояснений."""
 
 
-def should_expand_query(query: str, chunks: List[Dict]) -> bool:
-    if not query or not has_abbreviation(query):
+def should_expand_query(query: str, initial_chunks: List[Dict]) -> bool:
+    normalized = (query or "").strip()
+    if not normalized or initial_chunks:
         return False
-    return not chunks
+    if has_abbreviation(normalized):
+        return True
+    return len(re.findall(r"[а-яёa-z0-9]{2,}", normalized, re.I)) >= 2
 
 
 def parse_expanded_queries(raw: str, limit: int = 3) -> List[str]:

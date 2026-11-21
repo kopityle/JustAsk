@@ -30,7 +30,8 @@ def test_chat_normalizes_course_id_from_token(client):
         algorithm="HS256",
     )
 
-    with patch("app.api.chat.vector_store.search", return_value=[]) as mock_search:
+    with patch("app.api.chat.vector_store.search", return_value=[]) as mock_search, \
+         patch("app.api.chat.should_expand_query", return_value=False):
         response = client.post(
             "/api/chat/stream",
             json={"question": "Что такое база данных?"},
@@ -121,15 +122,17 @@ def test_expand_query_runs_under_inference_semaphore(client, monkeypatch):
 
 
 @patch("app.api.chat.vector_store.search")
-def test_chat_fast_fail_offtopic(mock_search, client):
-    # Если векторный поиск не нашел чанков с дистанцией <= 0.65
+def test_chat_fast_fail_single_word_spam(mock_search, client):
+    # Однословный спам не должен запускать дорогое расширение запроса.
     mock_search.return_value = []
-    
-    response = client.post("/api/chat/stream", json={"question": "Как сварить борщ на Марсе?"})
+
+    with patch("app.api.chat.expand_query", new_callable=AsyncMock) as mock_expand:
+        response = client.post("/api/chat/stream", json={"question": "алоо"})
+
     assert response.status_code == 200
     assert "text/event-stream" in response.headers["content-type"]
-    
-    # Должен сразу отдать отказ без вызова LLM
+    mock_expand.assert_not_awaited()
+
     text = response.text
     assert '"is_found": false' in text
     assert "В материалах курса ответ на этот вопрос не найден." in text

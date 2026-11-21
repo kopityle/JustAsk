@@ -9,6 +9,7 @@ import sys
 import time
 import os
 import re
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -208,15 +209,27 @@ def main():
         refusal = is_refusal(ans)          # отказ, включая перефразированный
         is_interest = idx in interest_indices
         expected_refusal = idx in EXPECTED_REFUSAL_INDICES
+        expected = "отказ" if expected_refusal else "ответ"
+
+        if expected_refusal:
+            status = "ОК" if (refusal and not hall) else "ПРОБЛЕМА: не отказал"
+        elif hall:
+            status = "ПРОБЛЕМА: код"
+        elif refusal:
+            status = "ПРОБЛЕМА: отказ на учебный вопрос"
+        else:
+            status = "ОК (ответ)"
 
         results.append({
             "idx": idx,
             "question": question,
-            "answer": ans[:200] + ("..." if len(ans) > 200 else ""),
+            "answer": ans.strip(),
             "time": t,
             "has_code": hall,
             "has_refusal": refusal,
             "expected_refusal": expected_refusal,
+            "expected": expected,
+            "status": status,
             "interest": is_interest
         })
 
@@ -238,20 +251,11 @@ def main():
     ]
 
     for r in results:
-        expected = "отказ" if r["expected_refusal"] else "ответ"
-        if r["expected_refusal"]:
-            status = "ОК" if (r["has_refusal"] and not r["has_code"]) else "ПРОБЛЕМА: не отказал"
-        elif r["has_code"]:
-            status = "ПРОБЛЕМА: код"
-        elif r["has_refusal"]:
-            status = "ПРОБЛЕМА: отказ на учебный вопрос"
-        else:
-            status = "ОК (ответ)"
         q_short = r["question"][:50] + ("..." if len(r["question"]) > 50 else "")
         md_lines.append(
             f"| {r['idx']} | {q_short} | {r['time']:.2f} | "
             f"{'ДА' if r['has_code'] else 'НЕТ'} | "
-            f"{'ДА' if r['has_refusal'] else 'НЕТ'} | {expected} | {status} |"
+            f"{'ДА' if r['has_refusal'] else 'НЕТ'} | {r['expected']} | {r['status']} |"
         )
 
     md_lines.append("")
@@ -263,6 +267,32 @@ def main():
         "- **Вопрос 39 (закон электромагнитной индукции Фарадея)** — оффтоп для курса БД, ожидается отказ.\n"
     )
 
+    # Полные диалоги: отчёт сохраняет вопросы и ответы целиком, а не только статусы.
+    dialog_payload = [
+        {
+            "idx": r["idx"],
+            "question": r["question"],
+            "answer": r["answer"],
+            "time": round(r["time"], 2),
+            "expected": r["expected"],
+            "status": r["status"],
+            "has_code": r["has_code"],
+            "has_refusal": r["has_refusal"],
+        }
+        for r in results
+    ]
+    md_lines.append("")
+    md_lines.append("### Полные вопросы и ответы\n")
+    for r in results:
+        md_lines.append(f"<!-- dialog:{r['idx']} -->")
+        md_lines.append(f"#### {r['idx']}. {r['question']}\n")
+        md_lines.append(
+            f"Время: {r['time']:.2f} с · Ожидалось: {r['expected']} · Статус: {r['status']}\n"
+        )
+        md_lines.append("Ответ:\n")
+        md_lines.append(r["answer"].strip() + "\n")
+        md_lines.append(f"<!-- /dialog:{r['idx']} -->\n")
+
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     report_path = RESULTS_DIR / f"40_questions_{stamp}.md"
@@ -270,8 +300,15 @@ def main():
     report_text = "\n".join(md_lines)
     report_path.write_text(report_text, encoding="utf-8")
     latest_path.write_text(report_text, encoding="utf-8")
+
+    dialogs_text = json.dumps(dialog_payload, ensure_ascii=False, indent=2)
+    dialogs_path = report_path.with_name(report_path.stem + "_dialogs.json")
+    latest_dialogs_path = RESULTS_DIR / "latest_40_questions_dialogs.json"
+    dialogs_path.write_text(dialogs_text, encoding="utf-8")
+    latest_dialogs_path.write_text(dialogs_text, encoding="utf-8")
     print(f"\n=== Отчёт сохранён: {report_path} ===")
     print(f"=== Последний отчёт: {latest_path} ===")
+    print(f"=== Диалоги: {dialogs_path} ===")
 
     # ----- Итоги -----
     total = len(results)

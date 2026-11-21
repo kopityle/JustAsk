@@ -21,12 +21,14 @@ data/
 .git/
 repomix-output.*
 htmlcov/
+docs/.obsidian/
 
 # Benchmarks, Locust artifacts & heavy dumps (Экономит контекст LLM!)
 *.csv
 benchmarks/results/*.html
 benchmarks/results/locust_*
-benchmarks/results/40_questions_202*.md
+benchmarks/results/*.md
+benchmarks/results/*_dialogs.json
 screenshots/
 benchmarks/screenshots/
 test-results/
@@ -48,6 +50,12 @@ coverage/
 dist/
 build/
 
+# Generated/minified frontend assets (не нужны в контексте LLM)
+app/static/vendor/*.min.js
+app/static/vendor/tailwind.css
+app/static/vendor/github-dark.min.css
+app/static/vendor/fonts/
+
 # Secrets and local configuration
 .env
 .env.*
@@ -62,3 +70,5 @@ desktop.ini
 .vscode/
 *.swp
 *.swo
+
+benchmarks/build_dashboard.py
