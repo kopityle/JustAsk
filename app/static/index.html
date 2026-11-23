@@ -219,11 +219,11 @@
     }
     .analytics-dialog__head {
       display: flex;
-      flex-wrap: wrap;
       align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
     }
+    .analytics-dialog__head > div { min-inline-size: 0; }
     .analytics-dialog__head h2 {
       font-size: 1.25rem;
       line-height: 1.25;
@@ -240,6 +240,7 @@
     .dark .analytics-dialog__subtitle { color: #a1a1aa; }
     .analytics-icon-btn {
       display: inline-flex;
+      flex-shrink: 0;
       align-items: center;
       justify-content: center;
       min-inline-size: 44px;
