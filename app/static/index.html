@@ -170,8 +170,9 @@
       }
     }
 
-    /* Статистика курса: нативный dialog + таблицы, которые не ломают 375px. */
-    dialog.analytics-dialog {
+    /* Нативные диалоги justask: статистика и подтверждения действий. */
+    dialog.analytics-dialog,
+    dialog.confirm-dialog {
       inline-size: min(920px, calc(100% - 2rem));
       max-block-size: min(86dvh, 860px);
       margin: auto;
@@ -184,19 +185,34 @@
       overflow: auto;
       scrollbar-gutter: stable;
     }
-    dialog.analytics-dialog:modal { overscroll-behavior: contain; }
-    dialog.analytics-dialog::backdrop {
+    dialog.analytics-dialog:modal,
+    dialog.confirm-dialog:modal { overscroll-behavior: contain; }
+    dialog.analytics-dialog::backdrop,
+    dialog.confirm-dialog::backdrop {
       background: rgba(5, 8, 22, 0.48);
       backdrop-filter: blur(3px);
       overflow: hidden;
       overscroll-behavior: contain;
     }
-    .dark dialog.analytics-dialog {
+    .dark dialog.analytics-dialog,
+    .dark dialog.confirm-dialog {
       border-color: #3f3f46;
       background: #18181b;
       color: #f4f4f5;
       box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
     }
+    dialog.confirm-dialog { inline-size: min(420px, calc(100% - 2rem)); }
+    dialog.confirm-dialog .analytics-dialog__inner { gap: 18px; }
+    .confirm-dialog__message {
+      margin-top: 6px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #475569;
+      text-wrap: pretty;
+    }
+    .dark .confirm-dialog__message { color: #d4d4d8; }
+    .analytics-dialog__foot.confirm-dialog__actions { justify-content: flex-end; }
+    .confirm-dialog__actions .analytics-reset-btn { min-inline-size: 104px; }
     .analytics-dialog__inner { display: grid; gap: 20px; padding: 20px; }
     @media (min-width: 640px) {
       .analytics-dialog__inner { gap: 24px; padding: 24px; }
@@ -295,31 +311,6 @@
     .dark .analytics-reset-btn { border-color: #3f3f46; background: #27272a; color: #d4d4d8; }
     .dark .analytics-reset-btn:hover { border-color: #7f1d1d; background: #450a0a; color: #fecaca; }
     .dark .analytics-reset-btn:focus-visible { outline-color: #a5b4fc; }
-    .analytics-reset-idle,
-    .analytics-reset-confirm {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px 12px;
-      inline-size: 100%;
-    }
-    .analytics-reset-idle.hidden,
-    .analytics-reset-confirm.hidden { display: none; }
-    .analytics-reset-confirm__text {
-      flex: 1 1 240px;
-      font-size: 12px;
-      color: #475569;
-      text-wrap: pretty;
-    }
-    .dark .analytics-reset-confirm__text { color: #d4d4d8; }
-    .analytics-reset-confirm__actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-inline-start: auto;
-    }
-    .analytics-reset-confirm__actions .analytics-reset-btn { min-inline-size: 96px; }
     .analytics-reset-btn--cancel { border-color: #cbd5e1; background: #fff; color: #475569; }
     .analytics-reset-btn--cancel:hover { border-color: #94a3b8; background: #f1f5f9; color: #0f172a; }
     .analytics-reset-btn--danger { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
@@ -659,20 +650,29 @@
       </section>
 
       <div class="analytics-dialog__foot">
-        <div id="analyticsResetIdle" class="analytics-reset-idle">
-          <p class="analytics-reset-hint">Сброс затрагивает только текущий курс.</p>
-          <button type="button" id="analyticsResetBtn" onclick="showAnalyticsResetConfirm()" class="analytics-reset-btn">
-            <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M4 7h16M9 7V4h6v3"/></svg>
-            <span id="analyticsResetText">Сбросить статистику курса</span>
-          </button>
+        <p class="analytics-reset-hint">Сброс затрагивает только текущий курс.</p>
+        <button type="button" id="analyticsResetBtn" onclick="resetAnalytics()" class="analytics-reset-btn">
+          <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M4 7h16M9 7V4h6v3"/></svg>
+          <span id="analyticsResetText">Сбросить статистику курса</span>
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="confirmDialog" class="confirm-dialog" closedby="any" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+    <div class="analytics-dialog__inner">
+      <div class="analytics-dialog__head">
+        <div>
+          <h2 id="confirmTitle"></h2>
+          <p id="confirmMessage" class="confirm-dialog__message"></p>
         </div>
-        <div id="analyticsResetConfirm" class="analytics-reset-confirm hidden" role="group" aria-labelledby="analyticsResetConfirmText">
-          <p id="analyticsResetConfirmText" class="analytics-reset-confirm__text">Сбросить всю статистику по текущему курсу? Статистика других курсов не будет затронута.</p>
-          <div class="analytics-reset-confirm__actions">
-            <button type="button" id="analyticsResetCancelBtn" onclick="hideAnalyticsResetConfirm()" class="analytics-reset-btn analytics-reset-btn--cancel">Отмена</button>
-            <button type="button" id="analyticsResetConfirmBtn" onclick="resetAnalytics()" class="analytics-reset-btn analytics-reset-btn--danger">Да, сбросить</button>
-          </div>
-        </div>
+        <button type="button" onclick="document.getElementById('confirmDialog').close()" aria-label="Закрыть подтверждение" class="analytics-icon-btn">
+          <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="analytics-dialog__foot confirm-dialog__actions">
+        <button type="button" id="confirmCancelBtn" onclick="document.getElementById('confirmDialog').close()" class="analytics-reset-btn analytics-reset-btn--cancel">Отмена</button>
+        <button type="button" id="confirmAcceptBtn" onclick="document.getElementById('confirmDialog').close('confirm')" class="analytics-reset-btn analytics-reset-btn--danger">Подтвердить</button>
       </div>
     </div>
   </dialog>
@@ -729,6 +729,7 @@
       if ($('teacherUploadBlock')) $('teacherUploadBlock').classList.add('hidden');
       if ($('analyticsBtn')) $('analyticsBtn').classList.add('hidden');
       if ($('analyticsDialog') && $('analyticsDialog').open) $('analyticsDialog').close();
+      if ($('confirmDialog') && $('confirmDialog').open) $('confirmDialog').close();
       if ($('devWriteBanner')) $('devWriteBanner').classList.add('hidden');
       const list = $('docsList');
       if (list) list.innerHTML = `<div class="text-xs text-red-500 py-2">${escapeHtml(message)}</div>`;
@@ -966,7 +967,12 @@
 
     async function deleteDoc(filename) {
       if (!canManageDocuments) return;
-      if (!confirm(`Удалить «${filename}»? Материал исчезнет из поиска по курсу.`)) return;
+      const confirmed = await askConfirm(
+        "Удалить материал?",
+        `Удалить «${filename}»? Материал исчезнет из поиска по курсу.`,
+        "Удалить"
+      );
+      if (!confirmed) return;
       let sessionExpired = false;
       try {
         const res = await fetch(`/api/documents/${encodeURIComponent(filename)}`, { method: "DELETE", headers: getAuthHeaders() });
@@ -1071,35 +1077,19 @@
       }
     }
 
-    function showAnalyticsResetConfirm() {
-      if (!isTeacher || !token) return;
-      $("analyticsResetIdle")?.classList.add("hidden");
-      $("analyticsResetConfirm")?.classList.remove("hidden");
-      $("analyticsResetConfirmBtn")?.focus({ preventScroll: true });
-    }
-
-    function hideAnalyticsResetConfirm(restoreFocus = true) {
-      $("analyticsResetConfirm")?.classList.add("hidden");
-      $("analyticsResetIdle")?.classList.remove("hidden");
-      const confirmBtn = $("analyticsResetConfirmBtn");
-      if (confirmBtn) {
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = "Да, сбросить";
-      }
-      const cancelBtn = $("analyticsResetCancelBtn");
-      if (cancelBtn) cancelBtn.disabled = false;
-      if (restoreFocus && $("analyticsDialog")?.open) {
-        $("analyticsResetBtn")?.focus({ preventScroll: true });
-      }
-    }
-
     async function resetAnalytics() {
       if (!isTeacher || !token) return;
-      const confirmBtn = $("analyticsResetConfirmBtn");
-      const cancelBtn = $("analyticsResetCancelBtn");
-      if (confirmBtn) confirmBtn.disabled = true;
-      if (cancelBtn) cancelBtn.disabled = true;
-      if (confirmBtn) confirmBtn.textContent = "Сбрасываем…";
+      const confirmed = await askConfirm(
+        "Сбросить статистику?",
+        "Сбросить всю статистику по текущему курсу? Статистика других курсов не будет затронута.",
+        "Сбросить"
+      );
+      if (!confirmed) return;
+
+      const btn = $("analyticsResetBtn");
+      const label = $("analyticsResetText");
+      if (btn) btn.disabled = true;
+      if (label) label.textContent = "Сбрасываем…";
 
       try {
         const res = await fetch("/api/analytics/summary", {
@@ -1126,7 +1116,8 @@
         setAnalyticsStatus(`Не удалось сбросить статистику: ${err.message}`, "error");
         setSrStatus("Не удалось сбросить статистику курса.");
       } finally {
-        hideAnalyticsResetConfirm(false);
+        if (btn) btn.disabled = false;
+        if (label) label.textContent = "Сбросить статистику курса";
       }
     }
 
@@ -1135,25 +1126,41 @@
       const dialog = $("analyticsDialog");
       if (!dialog || typeof dialog.showModal !== "function") return;
       if (window.innerWidth < 1024 && sidebarOpen) setSidebarOpen(false, true);
-      hideAnalyticsResetConfirm(false);
       if (!dialog.open) dialog.showModal();
       loadAnalytics();
     }
 
-    // Light-dismiss is limited browser support; native Esc/close button stay available.
-    const analyticsDialog = $("analyticsDialog");
-    if (analyticsDialog && typeof HTMLDialogElement !== "undefined" && !("closedBy" in HTMLDialogElement.prototype)) {
+    // Light-dismiss has limited support; native Esc and the close button stay available.
+    function bindDialogLightDismiss(dialog) {
+      if (!dialog || typeof HTMLDialogElement === "undefined" || "closedBy" in HTMLDialogElement.prototype) return;
       let pressedOutside = false;
       const outside = (event) => {
-        const rect = analyticsDialog.getBoundingClientRect();
+        const rect = dialog.getBoundingClientRect();
         return event.clientX < rect.left || event.clientX > rect.right
           || event.clientY < rect.top || event.clientY > rect.bottom;
       };
-      analyticsDialog.addEventListener("pointerdown", (event) => {
+      dialog.addEventListener("pointerdown", (event) => {
         pressedOutside = outside(event);
       });
-      analyticsDialog.addEventListener("pointerup", (event) => {
-        if (pressedOutside && outside(event)) analyticsDialog.close();
+      dialog.addEventListener("pointerup", (event) => {
+        if (pressedOutside && outside(event)) dialog.close();
+      });
+    }
+    bindDialogLightDismiss($("analyticsDialog"));
+    bindDialogLightDismiss($("confirmDialog"));
+
+    function askConfirm(title, message, confirmLabel) {
+      const dialog = $("confirmDialog");
+      if (!dialog || typeof dialog.showModal !== "function" || dialog.open) return Promise.resolve(false);
+      $("confirmTitle").textContent = title;
+      $("confirmMessage").textContent = message;
+      const accept = $("confirmAcceptBtn");
+      accept.textContent = confirmLabel || "Подтвердить";
+      dialog.returnValue = "";
+      return new Promise((resolve) => {
+        dialog.addEventListener("close", () => resolve(dialog.returnValue === "confirm"), { once: true });
+        dialog.showModal();
+        $("confirmCancelBtn")?.focus({ preventScroll: true });
       });
     }
 
@@ -1335,8 +1342,13 @@
         : "Спросить";
     }
 
-    function clearConversation() {
-      if (!confirm("Очистить диалог? Это действие нельзя отменить.")) return;
+    async function clearConversation() {
+      const confirmed = await askConfirm(
+        "Очистка диалога",
+        "Очистить диалог? Это действие нельзя отменить.",
+        "Очистить"
+      );
+      if (!confirmed) return;
       if (activeController) activeController.abort();
       messages.innerHTML = welcomeHtml();
       setCourseBadge(courseLabel);
