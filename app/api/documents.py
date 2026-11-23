@@ -1,12 +1,14 @@
-﻿import os, re
+﻿import logging, os, re
 import asyncio
 from fastapi import APIRouter, UploadFile, File, HTTPException, Header
 from app.core.config import settings
 from app.services.pdf_loader import load_and_chunk_file
 from app.services.vector_store import vector_store
 from app.api.chat import get_session_context
+from app.services.analytics_store import delete_source_hits
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
+logger = logging.getLogger(__name__)
 
 # Индексация книг тяжёлая — не даём двум преподавателям грузить её одновременно.
 upload_semaphore = asyncio.Semaphore(1)
@@ -154,5 +156,10 @@ async def delete_document(filename: str, authorization: str = Header(None)):
             os.remove(file_path)
         elif removed_chunks == 0:
             raise HTTPException(status_code=404, detail="Файл не найден")
+
+        try:
+            delete_source_hits(course_id, filename)
+        except Exception:
+            logger.exception("Аналитика не удалила цитирования файла")
 
     return {"status": "deleted", "filename": filename, "removed_chunks": removed_chunks}
