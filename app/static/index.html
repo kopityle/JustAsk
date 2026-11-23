@@ -164,7 +164,248 @@
         transform: none;
       }
     }
-</style>
+
+    /* Статистика курса: нативный dialog + таблицы, которые не ломают 375px. */
+    dialog.analytics-dialog {
+      inline-size: min(920px, calc(100% - 2rem));
+      max-block-size: min(86dvh, 860px);
+      margin: auto;
+      padding: 0;
+      border: 1px solid #cbd5e1;
+      border-radius: 20px;
+      background: #fff;
+      color: #1e293b;
+      box-shadow: 0 24px 60px rgba(3, 12, 48, 0.28);
+      overflow: auto;
+      scrollbar-gutter: stable;
+    }
+    dialog.analytics-dialog:modal { overscroll-behavior: contain; }
+    dialog.analytics-dialog::backdrop {
+      background: rgba(5, 8, 22, 0.48);
+      backdrop-filter: blur(3px);
+      overflow: hidden;
+      overscroll-behavior: contain;
+    }
+    .dark dialog.analytics-dialog {
+      border-color: #3f3f46;
+      background: #18181b;
+      color: #f4f4f5;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+    }
+    .analytics-dialog__inner { display: grid; gap: 20px; padding: 20px; }
+    @media (min-width: 640px) {
+      .analytics-dialog__inner { gap: 24px; padding: 24px; }
+    }
+    .analytics-dialog__head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .analytics-dialog__head h2 {
+      font-size: 1.25rem;
+      line-height: 1.25;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      text-wrap: balance;
+    }
+    .analytics-dialog__subtitle {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #475569;
+      text-wrap: pretty;
+    }
+    .dark .analytics-dialog__subtitle { color: #a1a1aa; }
+    .analytics-icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-inline-size: 44px;
+      min-block-size: 44px;
+      border-radius: 12px;
+      color: #475569;
+    }
+    .analytics-icon-btn:hover { background: #f1f5f9; color: #0f172a; }
+    .dark .analytics-icon-btn { color: #a1a1aa; }
+    .dark .analytics-icon-btn:hover { background: #27272a; color: #fafafa; }
+    .analytics-status {
+      padding: 10px 12px;
+      border: 1px solid #c7d2fe;
+      border-radius: 10px;
+      background: #eef2ff;
+      color: #3730a3;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .analytics-status[data-kind="error"] {
+      border-color: #fecaca;
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+    .dark .analytics-status {
+      border-color: #3730a3;
+      background: #1e1b4b;
+      color: #c7d2fe;
+    }
+    .dark .analytics-status[data-kind="error"] {
+      border-color: #7f1d1d;
+      background: #450a0a;
+      color: #fecaca;
+    }
+    .analytics-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .analytics-metric {
+      padding: 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      background: #f8fafc;
+    }
+    .dark .analytics-metric { border-color: #3f3f46; background: #27272a; }
+    .analytics-metric__value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+    }
+    .analytics-metric__label {
+      margin-top: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #475569;
+    }
+    .analytics-metric__hint {
+      margin-top: 2px;
+      font-size: 11px;
+      color: #64748b;
+      font-variant-numeric: tabular-nums;
+    }
+    .dark .analytics-metric__label { color: #d4d4d8; }
+    .dark .analytics-metric__hint { color: #a1a1aa; }
+    .analytics-section h3 {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      text-wrap: balance;
+    }
+    .analytics-section__hint {
+      margin-top: 2px;
+      font-size: 11px;
+      color: #64748b;
+    }
+    .dark .analytics-section__hint { color: #a1a1aa; }
+    .analytics-table-wrapper {
+      margin-top: 10px;
+      inline-size: 100%;
+      max-inline-size: 100%;
+      max-block-size: 300px;
+      overflow: auto;
+      container-type: inline-size;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      scrollbar-gutter: stable;
+      overscroll-behavior: contain;
+    }
+    .dark .analytics-table-wrapper { border-color: #3f3f46; }
+    .analytics-table-wrapper:focus-visible { outline: 2px solid #0C36CD; outline-offset: 2px; }
+    .dark .analytics-table-wrapper:focus-visible { outline-color: #a5b4fc; }
+    .analytics-table {
+      inline-size: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 12px;
+    }
+    .analytics-table caption {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .analytics-table thead th {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 1;
+      padding: 10px 12px;
+      background: #f1f5f9;
+      color: #475569;
+      font-weight: 600;
+      text-align: left;
+      white-space: nowrap;
+    }
+    .analytics-table tbody th,
+    .analytics-table tbody td {
+      padding: 10px 12px;
+      border-top: 1px solid #e2e8f0;
+      text-align: left;
+      vertical-align: top;
+    }
+    .analytics-table tbody th {
+      position: sticky;
+      inset-inline-start: 0;
+      z-index: 2;
+      background: #fff;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+    .analytics-table td {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .analytics-table .analytics-empty {
+      color: #64748b;
+      white-space: normal;
+    }
+    .dark .analytics-table thead th { background: #27272a; color: #d4d4d8; }
+    .dark .analytics-table tbody th { background: #18181b; }
+    .dark .analytics-table tbody th,
+    .dark .analytics-table tbody td { border-color: #3f3f46; }
+    .dark .analytics-table .analytics-empty { color: #a1a1aa; }
+    @container (width < 520px) {
+      .analytics-table,
+      .analytics-table thead,
+      .analytics-table tbody,
+      .analytics-table tr,
+      .analytics-table th,
+      .analytics-table td { display: block; }
+      .analytics-table thead { display: none; }
+      .analytics-table tr {
+        margin-block-end: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .analytics-table tbody th {
+        position: sticky;
+        inset-block-start: 0;
+        inset-inline-start: auto;
+        padding-block: 10px;
+        background: #f8fafc;
+      }
+      .analytics-table td {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        white-space: normal;
+      }
+      .analytics-table td::before {
+        color: #64748b;
+        font-weight: 600;
+      }
+      .analytics-table td[data-col="citations"]::before { content: "Цитат"; }
+      .analytics-table td[data-col="hits"]::before { content: "Попаданий"; }
+      .analytics-table td[data-col="downvotes"]::before { content: "«Не полезно»"; }
+      .dark .analytics-table tr { border-color: #3f3f46; }
+      .dark .analytics-table tbody th { background: #27272a; }
+      .dark .analytics-table td::before { color: #a1a1aa; }
+    }
+  </style>
   <link rel="icon" type="image/svg+xml" href="logo.svg">
 </head>
 <body class="p-0 bg-[#F7F7F5] dark:bg-slate-950 text-slate-800 dark:text-zinc-100 flex h-screen overflow-hidden transition-colors duration-200">
@@ -193,6 +434,10 @@
 
       <!-- Блок загрузки материалов с индикатором прогресса -->
       <div id="teacherUploadBlock" class="hidden pt-3 border-t border-slate-100 dark:border-zinc-800 mt-auto">
+        <button type="button" id="analyticsBtn" onclick="openAnalytics()" class="hidden w-full min-h-11 mb-2 py-2 px-4 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 rounded-full text-xs font-medium hover:bg-slate-100 dark:hover:bg-zinc-800 transition flex items-center justify-center gap-2">
+          <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 20V10m6 10V4m6 16v-7m4 7H2"/></svg>
+          <span>Статистика курса</span>
+        </button>
         <input type="file" id="fileInput" accept=".pdf,.txt,.docx" class="hidden">
         <button type="button" id="uploadBtn" onclick="document.getElementById('fileInput').click()" 
                 class="w-full min-h-11 py-2.5 px-4 bg-[#0C36CD] hover:bg-[#0A005A] text-white rounded-full text-xs font-medium transition flex items-center justify-center gap-2 shadow-[0_8px_20px_rgba(12,54,205,0.3)] disabled:opacity-50 disabled:cursor-not-allowed">
@@ -299,6 +544,60 @@
     </div>
   </main>
 
+  <dialog id="analyticsDialog" class="analytics-dialog" closedby="any" aria-labelledby="analyticsTitle" aria-describedby="analyticsSubtitle">
+    <div class="analytics-dialog__inner">
+      <div class="analytics-dialog__head">
+        <div>
+          <h2 id="analyticsTitle">Статистика курса</h2>
+          <p id="analyticsSubtitle" class="analytics-dialog__subtitle">Обезличенные данные: без вопросов и ответов студентов.</p>
+        </div>
+        <button type="button" onclick="document.getElementById('analyticsDialog').close()" aria-label="Закрыть статистику" class="analytics-icon-btn">
+          <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div id="analyticsStatus" class="analytics-status hidden" role="status" aria-live="polite"></div>
+      <div id="analyticsMetrics" class="analytics-metrics"></div>
+
+      <section class="analytics-section" aria-labelledby="analyticsFilesTitle">
+        <h3 id="analyticsFilesTitle">Материалы курса</h3>
+        <p class="analytics-section__hint">Цитаты и отметки «не полезно» по файлам.</p>
+        <div class="analytics-table-wrapper custom-scroll" tabindex="0" role="region" aria-labelledby="analyticsFilesCaption">
+          <table class="analytics-table">
+            <caption id="analyticsFilesCaption">Цитирования и оценки по файлам</caption>
+            <thead>
+              <tr>
+                <th scope="col">Файл</th>
+                <th scope="col">Цитат</th>
+                <th scope="col">«Не полезно»</th>
+              </tr>
+            </thead>
+            <tbody id="analyticsFilesBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="analytics-section" aria-labelledby="analyticsPagesTitle">
+        <h3 id="analyticsPagesTitle">Страницы с цитатами</h3>
+        <p class="analytics-section__hint">Первые 15 страниц по числу попаданий.</p>
+        <div class="analytics-table-wrapper custom-scroll" tabindex="0" role="region" aria-labelledby="analyticsPagesCaption">
+          <table class="analytics-table">
+            <caption id="analyticsPagesCaption">Страницы с наибольшим числом цитирований</caption>
+            <thead>
+              <tr>
+                <th scope="col">Файл</th>
+                <th scope="col">Страница</th>
+                <th scope="col">Попаданий</th>
+                <th scope="col">«Не полезно»</th>
+              </tr>
+            </thead>
+            <tbody id="analyticsPagesBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </dialog>
+
   <div id="srStatus" class="sr-only" role="status" aria-live="polite"></div>
 
   <script>
@@ -343,11 +642,14 @@
       sessionStorage.removeItem('justask_jwt');
       token = null;
       isStudent = false;
+      isTeacher = false;
       canManageDocuments = false;
       hasCourseDocuments = null;
       if ($('roleBadge')) $('roleBadge').innerText = 'Гость';
       setCourseBadge('Курс: Основной');
       if ($('teacherUploadBlock')) $('teacherUploadBlock').classList.add('hidden');
+      if ($('analyticsBtn')) $('analyticsBtn').classList.add('hidden');
+      if ($('analyticsDialog') && $('analyticsDialog').open) $('analyticsDialog').close();
       if ($('devWriteBanner')) $('devWriteBanner').classList.add('hidden');
       const list = $('docsList');
       if (list) list.innerHTML = `<div class="text-xs text-red-500 py-2">${escapeHtml(message)}</div>`;
@@ -357,6 +659,7 @@
     }
 
     let isStudent = false;
+    let isTeacher = false;
     let canManageDocuments = false;
     let hasCourseDocuments = null;
     let activeController = null;
@@ -364,6 +667,8 @@
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         isStudent = payload.role === 'student';
+        isTeacher = payload.role === 'teacher';
+        $('analyticsBtn')?.classList.toggle('hidden', !isTeacher);
         $('roleBadge').innerText = payload.role === 'student'
           ? `Студент (${payload.name || 'без имени'})`
           : payload.role === 'teacher'
@@ -373,7 +678,9 @@
       } catch (e) {
         sessionStorage.removeItem('justask_jwt');
         token = null;
+        isTeacher = false;
         $('roleBadge').innerText = 'Гость';
+        $('analyticsBtn')?.classList.add('hidden');
       }
     }
 
@@ -613,6 +920,102 @@
 
     loadDocuments();
 
+    const formatCount = (value) => new Intl.NumberFormat("ru-RU").format(Number(value) || 0);
+    const formatPercent = (value) => `${formatCount(value)}%`;
+
+    function setAnalyticsStatus(message, kind = "info") {
+      const status = $("analyticsStatus");
+      if (!status) return;
+      status.textContent = message;
+      status.dataset.kind = kind;
+      status.classList.remove("hidden");
+    }
+
+    function renderAnalytics(data) {
+      const metrics = [
+        { label: "Всего вопросов", value: formatCount(data.total_queries), hint: "за время работы курса" },
+        { label: "Ответы найдены", value: formatPercent(data.found_percentage), hint: `${formatCount(data.found_queries)} из ${formatCount(data.total_queries)}` },
+        { label: "Полезность", value: formatPercent(data.usefulness_percentage), hint: `${formatCount(data.upvotes)} «да» · ${formatCount(data.downvotes)} «нет»` },
+      ];
+      $("analyticsMetrics").innerHTML = metrics.map((m) => `
+        <div class="analytics-metric">
+          <div class="analytics-metric__value">${escapeHtml(m.value)}</div>
+          <div class="analytics-metric__label">${escapeHtml(m.label)}</div>
+          <div class="analytics-metric__hint">${escapeHtml(m.hint)}</div>
+        </div>`).join("");
+
+      const files = Array.isArray(data.files) ? data.files : [];
+      $("analyticsFilesBody").innerHTML = files.length
+        ? files.map((f) => `
+          <tr>
+            <th scope="row">${escapeHtml(f.filename)}</th>
+            <td data-col="citations">${formatCount(f.citations)}</td>
+            <td data-col="downvotes">${formatCount(f.downvotes)}</td>
+          </tr>`).join("")
+        : '<tr><td class="analytics-empty" colspan="3">Пока нет цитат из материалов.</td></tr>';
+
+      const pages = Array.isArray(data.pages) ? data.pages : [];
+      $("analyticsPagesBody").innerHTML = pages.length
+        ? pages.map((p) => `
+          <tr>
+            <th scope="row">${escapeHtml(p.filename)}</th>
+            <td data-col="page">Стр. ${formatCount(p.page)}</td>
+            <td data-col="hits">${formatCount(p.hits)}</td>
+            <td data-col="downvotes">${formatCount(p.downvotes)}</td>
+          </tr>`).join("")
+        : '<tr><td class="analytics-empty" colspan="4">Пока нет страниц с цитатами.</td></tr>';
+    }
+
+    async function loadAnalytics() {
+      setAnalyticsStatus("Загружаем статистику…", "info");
+      try {
+        const res = await fetch("/api/analytics/summary", { headers: getAuthHeaders() });
+        if (res.status === 401) {
+          const detail = await readError(res);
+          handleSessionExpired(detail);
+          $("analyticsDialog").close();
+          return;
+        }
+        if (res.status === 403) {
+          setAnalyticsStatus("Статистика доступна только преподавателю.", "error");
+          return;
+        }
+        if (!res.ok) throw new Error(await readError(res));
+        renderAnalytics(await res.json());
+        $("analyticsStatus").classList.add("hidden");
+        setSrStatus("Статистика курса загружена.");
+      } catch (err) {
+        setAnalyticsStatus(`Не удалось загрузить статистику: ${err.message}`, "error");
+        setSrStatus("Не удалось загрузить статистику курса.");
+      }
+    }
+
+    function openAnalytics() {
+      if (!isTeacher || !token) return;
+      const dialog = $("analyticsDialog");
+      if (!dialog || typeof dialog.showModal !== "function") return;
+      if (window.innerWidth < 1024 && sidebarOpen) setSidebarOpen(false, true);
+      if (!dialog.open) dialog.showModal();
+      loadAnalytics();
+    }
+
+    // Light-dismiss is limited browser support; native Esc/close button stay available.
+    const analyticsDialog = $("analyticsDialog");
+    if (analyticsDialog && typeof HTMLDialogElement !== "undefined" && !("closedBy" in HTMLDialogElement.prototype)) {
+      let pressedOutside = false;
+      const outside = (event) => {
+        const rect = analyticsDialog.getBoundingClientRect();
+        return event.clientX < rect.left || event.clientX > rect.right
+          || event.clientY < rect.top || event.clientY > rect.bottom;
+      };
+      analyticsDialog.addEventListener("pointerdown", (event) => {
+        pressedOutside = outside(event);
+      });
+      analyticsDialog.addEventListener("pointerup", (event) => {
+        if (pressedOutside && outside(event)) analyticsDialog.close();
+      });
+    }
+
     const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
     $("fileInput").addEventListener("change", async (e) => {
       const file = e.target.files[0];
@@ -697,11 +1100,12 @@
       const card = btn.closest('.ai-card');
       const q = card.getAttribute('data-q');
       const a = card.querySelector('.msg-body').innerText;
+      const eventId = card.getAttribute('data-event-id');
       try {
         const res = await fetch("/api/feedback", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-          body: JSON.stringify({ question: q, answer: a, is_positive: isPositive })
+          body: JSON.stringify({ question: q, answer: a, is_positive: isPositive, ...(eventId ? { event_id: eventId } : {}) })
         });
         if (!res.ok) throw new Error(await readError(res));
         const feedback = btn.parentElement;
@@ -972,6 +1376,7 @@
       let rawAnswer = "";
       let hasSources = false;
       let isFound = true;
+      let eventId = null;
       try {
         const response = await fetch("/api/chat/stream", {
           method: "POST",
@@ -1019,6 +1424,11 @@
           }
           try {
             const payload = JSON.parse(payloadStr);
+            if (payload.type === "done") {
+              eventId = payload.event_id || null;
+              if (eventId) msgEl.setAttribute("data-event-id", eventId);
+              return;
+            }
             if (payload.type === "meta") {
               hasSources = Array.isArray(payload.sources) && payload.sources.length > 0;
               isFound = payload.is_found !== false;

@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.chat import router as chat_router
 from app.api.documents import router as doc_router
+from app.api.analytics import router as analytics_router
 from app.api.lti import router as lti_router
 from app.services.vector_store import vector_store
 
@@ -40,6 +41,7 @@ async def limit_upload_request_size(request, call_next):
 
 app.include_router(chat_router)
 app.include_router(doc_router)
+app.include_router(analytics_router)
 app.include_router(lti_router)
 
 

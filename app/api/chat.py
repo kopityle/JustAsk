@@ -1,4 +1,4 @@
-﻿import asyncio, json, os, jwt, re, threading
+﻿import asyncio, json, logging, os, jwt, re, threading, uuid
 from fastapi import APIRouter, HTTPException, Header, Request
 from fastapi.responses import StreamingResponse
 from app.schemas.chat import ChatRequest, FeedbackRequest
@@ -7,10 +7,27 @@ from app.core.limiter import inference_semaphore
 from app.services.vector_store import vector_store
 from app.services.llm_client import stream_rag_answer
 from app.services.query_expansion import expand_query, should_expand_query
+from app.services.analytics_store import record_query, update_rating
 
 router = APIRouter(prefix="/api", tags=["chat"])
 JWT_SECRET = settings.JWT_SECRET
 file_lock = threading.Lock()
+logger = logging.getLogger(__name__)
+
+
+def _safe_record_query(course_id, is_found, sources=None):
+    try:
+        return record_query(course_id, is_found, sources)
+    except Exception:
+        logger.exception("Аналитика не записала запрос")
+        return uuid.uuid4().hex
+
+
+def _safe_update_rating(event_id, rating):
+    try:
+        update_rating(event_id, rating)
+    except Exception:
+        logger.exception("Аналитика не обновила оценку")
 
 GREETING_REGEX = re.compile(
     r'^(привет(ик)?|здравствуй(те)?|добр(ый|ое) (день|вечер|утро)|хай|хей|hello|hi|ку)\b[,\s!.]*', 
@@ -111,9 +128,11 @@ async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization
         # Моментальный отказ за 15 мс (оффтоп/борщ), без захода в семафор и вызова LLM
         if not chunks:
             async def fast_reject_stream():
+                event_id = _safe_record_query(course_id, False)
                 yield f"data: {json.dumps({'type': 'meta', 'sources': [], 'is_found': False}, ensure_ascii=False)}\n\n"
                 msg = "В материалах курса ответ на этот вопрос не найден."
                 yield f"data: {json.dumps({'type': 'token', 'token': msg}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'event_id': event_id}, ensure_ascii=False)}\n\n"
                 yield "data: [DONE]\n\n"
             return StreamingResponse(
                 fast_reject_stream(),
@@ -137,11 +156,12 @@ async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization
             yield "data: [DONE]\n\n"
             return
 
+        found = is_pure_greeting or len(chunks) > 0
         try:
             initial_payload = {
                 "type": "meta",
                 "sources": sources,
-                "is_found": is_pure_greeting or len(chunks) > 0
+                "is_found": found
             }
             yield f"data: {json.dumps(initial_payload, ensure_ascii=False)}\n\n"
 
@@ -154,6 +174,8 @@ async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization
         finally:
             inference_semaphore.release()
 
+        event_id = _safe_record_query(course_id, found, sources if found else [])
+        yield f"data: {json.dumps({'type': 'done', 'event_id': event_id}, ensure_ascii=False)}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(
@@ -164,8 +186,11 @@ async def chat_stream_endpoint(req: ChatRequest, request: Request, authorization
 
 @router.post("/feedback")
 def submit_feedback(req: FeedbackRequest):
+    if req.event_id:
+        _safe_update_rating(req.event_id, "up" if req.is_positive else "down")
+
     os.makedirs(os.path.dirname(settings.FEEDBACK_FILE), exist_ok=True)
     with file_lock:  # Никаких наложений строк
         with open(settings.FEEDBACK_FILE, "a", encoding="utf-8") as f:
-            f.write(json.dumps(req.model_dump(), ensure_ascii=False) + "\n")
+            f.write(json.dumps(req.model_dump(exclude_none=True), ensure_ascii=False) + "\n")
     return {"status": "recorded"}

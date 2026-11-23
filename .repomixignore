@@ -1,5 +1,6 @@
 # Local runtime data and heavy binaries
 data/
+data/*.db
 *.pdf
 *.png
 *.jpg

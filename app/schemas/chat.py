@@ -19,3 +19,4 @@ class FeedbackRequest(BaseModel):
     question: str
     answer: str
     is_positive: bool
+    event_id: Optional[str] = Field(default=None, max_length=64)
