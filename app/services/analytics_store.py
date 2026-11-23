@@ -169,6 +169,18 @@ def delete_source_hits(course_id: str, filename: str) -> int:
         return 0
 
 
+def reset_course_analytics(course_id: str) -> None:
+    """Delete all analytics for one course in a single transaction."""
+    course = str(course_id or "default_course")
+    try:
+        with _connection() as conn:
+            # Дети удаляются первыми, чтобы не задеть записи других курсов.
+            conn.execute("DELETE FROM source_hits WHERE course_id = ?", (course,))
+            conn.execute("DELETE FROM query_stats WHERE course_id = ?", (course,))
+    except Exception:
+        logger.exception("Не удалось сбросить аналитику курса")
+
+
 def get_course_summary(course_id: str) -> dict[str, Any]:
     """Aggregate de-identified counters for one course."""
     course = str(course_id or "default_course")

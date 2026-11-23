@@ -283,3 +283,26 @@ def test_delete_document_survives_analytics_failure(client, tmp_path, teacher_he
     response = client.delete("/api/documents/file.pdf", headers=teacher_headers)
 
     assert response.status_code == 200
+
+
+def test_reset_summary_is_teacher_only_and_scoped_to_course(client, student_headers, teacher_headers, analytics_db):
+    analytics_store.record_query("test_course", True, [{"document": "course_a.pdf", "page": 1}])
+    analytics_store.record_query("test_course", False)
+    analytics_store.record_query("other_course", True, [{"document": "course_b.pdf", "page": 2}])
+
+    assert client.delete("/api/analytics/summary", headers=student_headers).status_code == 403
+    assert client.delete("/api/analytics/summary").status_code == 403
+    assert len(_rows(analytics_db, "SELECT * FROM query_stats WHERE course_id = 'test_course'")) == 2
+
+    response = client.delete("/api/analytics/summary", headers=teacher_headers)
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+    assert _rows(analytics_db, "SELECT * FROM query_stats WHERE course_id = 'test_course'") == []
+    assert _rows(analytics_db, "SELECT * FROM source_hits WHERE course_id = 'test_course'") == []
+
+    other_queries = _rows(analytics_db, "SELECT * FROM query_stats WHERE course_id = 'other_course'")
+    other_hits = _rows(analytics_db, "SELECT * FROM source_hits WHERE course_id = 'other_course'")
+    assert len(other_queries) == 1
+    assert len(other_hits) == 1
+    assert other_hits[0]["filename"] == "course_b.pdf"

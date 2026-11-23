@@ -253,6 +253,43 @@
       background: #450a0a;
       color: #fecaca;
     }
+    .analytics-dialog__foot {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 12px;
+      padding-top: 16px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .dark .analytics-dialog__foot { border-color: #3f3f46; }
+    .analytics-reset-hint {
+      font-size: 12px;
+      color: #64748b;
+      text-wrap: pretty;
+    }
+    .dark .analytics-reset-hint { color: #a1a1aa; }
+    .analytics-reset-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-block-size: 44px;
+      padding: 9px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      background: #fff;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .analytics-reset-btn:hover { border-color: #fca5a5; background: #fef2f2; color: #b91c1c; }
+    .analytics-reset-btn:disabled { cursor: wait; opacity: 0.6; }
+    .analytics-reset-btn:focus-visible { outline: 2px solid #0C36CD; outline-offset: 2px; }
+    .dark .analytics-reset-btn { border-color: #3f3f46; background: #27272a; color: #d4d4d8; }
+    .dark .analytics-reset-btn:hover { border-color: #7f1d1d; background: #450a0a; color: #fecaca; }
+    .dark .analytics-reset-btn:focus-visible { outline-color: #a5b4fc; }
     .analytics-metrics {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -274,13 +311,13 @@
     }
     .analytics-metric__label {
       margin-top: 6px;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 600;
       color: #475569;
     }
     .analytics-metric__hint {
       margin-top: 2px;
-      font-size: 11px;
+      font-size: 12px;
       color: #64748b;
       font-variant-numeric: tabular-nums;
     }
@@ -294,7 +331,7 @@
     }
     .analytics-section__hint {
       margin-top: 2px;
-      font-size: 11px;
+      font-size: 12px;
       color: #64748b;
     }
     .dark .analytics-section__hint { color: #a1a1aa; }
@@ -595,6 +632,14 @@
           </table>
         </div>
       </section>
+
+      <div class="analytics-dialog__foot">
+        <p class="analytics-reset-hint">Сброс затрагивает только текущий курс.</p>
+        <button type="button" id="analyticsResetBtn" onclick="resetAnalytics()" class="analytics-reset-btn">
+          <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M4 7h16M9 7V4h6v3"/></svg>
+          <span id="analyticsResetText">Сбросить статистику курса</span>
+        </button>
+      </div>
     </div>
   </dialog>
 
@@ -974,6 +1019,45 @@
           const detail = await readError(res);
           handleSessionExpired(detail);
           $("analyticsDialog").close();
+          return false;
+        }
+        if (res.status === 403) {
+          setAnalyticsStatus("Статистика доступна только преподавателю.", "error");
+          return false;
+        }
+        if (!res.ok) throw new Error(await readError(res));
+        renderAnalytics(await res.json());
+        $("analyticsStatus").classList.add("hidden");
+        setSrStatus("Статистика курса загружена.");
+        return true;
+      } catch (err) {
+        setAnalyticsStatus(`Не удалось загрузить статистику: ${err.message}`, "error");
+        setSrStatus("Не удалось загрузить статистику курса.");
+        return false;
+      }
+    }
+
+    async function resetAnalytics() {
+      if (!isTeacher || !token) return;
+      const confirmed = window.confirm(
+        "Сбросить всю статистику по текущему курсу? Статистика других курсов не будет затронута."
+      );
+      if (!confirmed) return;
+
+      const btn = $("analyticsResetBtn");
+      const label = $("analyticsResetText");
+      if (btn) btn.disabled = true;
+      if (label) label.textContent = "Сбрасываем…";
+
+      try {
+        const res = await fetch("/api/analytics/summary", {
+          method: "DELETE",
+          headers: getAuthHeaders()
+        });
+        if (res.status === 401) {
+          const detail = await readError(res);
+          handleSessionExpired(detail);
+          $("analyticsDialog").close();
           return;
         }
         if (res.status === 403) {
@@ -981,12 +1065,17 @@
           return;
         }
         if (!res.ok) throw new Error(await readError(res));
-        renderAnalytics(await res.json());
-        $("analyticsStatus").classList.add("hidden");
-        setSrStatus("Статистика курса загружена.");
+
+        if (await loadAnalytics()) {
+          setAnalyticsStatus("Статистика курса сброшена.", "info");
+          setSrStatus("Статистика курса сброшена.");
+        }
       } catch (err) {
-        setAnalyticsStatus(`Не удалось загрузить статистику: ${err.message}`, "error");
-        setSrStatus("Не удалось загрузить статистику курса.");
+        setAnalyticsStatus(`Не удалось сбросить статистику: ${err.message}`, "error");
+        setSrStatus("Не удалось сбросить статистику курса.");
+      } finally {
+        if (btn) btn.disabled = false;
+        if (label) label.textContent = "Сбросить статистику курса";
       }
     }
 
